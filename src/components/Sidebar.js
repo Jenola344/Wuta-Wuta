@@ -1,15 +1,25 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, Command } from 'lucide-react';
 
-const Sidebar = ({ navigation, activeTab, onTabChange, isOpen }) => {
+const Sidebar = ({ navigation, activeTab, onTabChange, isOpen, onClose }) => {
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+    } else {
+      // Fallback for backwards compatibility
+      onTabChange(activeTab);
+    }
+  };
+
   return (
     <>
       {/* Overlay for mobile */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
-          onClick={() => onTabChange(activeTab)}
+          onClick={handleClose}
+          data-testid="sidebar-overlay"
         />
       )}
       
@@ -32,8 +42,9 @@ const Sidebar = ({ navigation, activeTab, onTabChange, isOpen }) => {
               <h2 className="text-xl font-bold text-gray-900 tracking-tight">Muse</h2>
             </div>
             <button
-              onClick={() => onTabChange(activeTab)}
+              onClick={handleClose}
               className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500"
+              aria-label="Close sidebar"
             >
               <X className="w-5 h-5" />
             </button>
@@ -70,6 +81,14 @@ const Sidebar = ({ navigation, activeTab, onTabChange, isOpen }) => {
 
           {/* Footer */}
           <div className="p-4 sm:p-6 border-t border-gray-100 bg-gray-50/50">
+            {/* Quick Nav Hint — desktop only */}
+            <div className="hidden md:flex items-center gap-2 px-3 py-2 mb-3 bg-white rounded-lg border border-gray-100 text-gray-400 text-xs font-medium">
+              <Command className="w-3.5 h-3.5" />
+              <span>Press</span>
+              <kbd className="px-1.5 py-0.5 bg-gray-50 border border-gray-200 rounded text-[10px] font-mono shadow-sm">⌘K</kbd>
+              <span>for quick nav</span>
+            </div>
+
             <div className="bg-gradient-to-r from-purple-100 to-blue-100 rounded-xl p-4 text-center">
               <p className="text-sm font-semibold text-purple-900">Muse AI Art</p>
               <p className="text-xs text-purple-700/80 mt-1">Stellar Testnet v1.0</p>

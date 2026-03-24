@@ -1,10 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Menu, Wallet, X, LogOut } from 'lucide-react';
+import { Menu, Wallet, X, LogOut, Search, Command } from 'lucide-react';
 import { Button, Badge, Avatar } from './ui';
 import CopyButton from './CopyButton';
 
-const Header = ({ onMenuClick, onConnectWallet, onDisconnectWallet, address, isConnected }) => {
+const Header = ({ onMenuClick, onConnectWallet, onDisconnectWallet, address, isConnected, onOpenPalette }) => {
   return (
     <motion.header
       initial={{ y: -20, opacity: 0 }}
@@ -36,7 +36,38 @@ const Header = ({ onMenuClick, onConnectWallet, onDisconnectWallet, address, isC
           </div>
 
           {/* Right side tools */}
-          <div className="flex items-center space-x-3 sm:space-x-4 ml-auto">
+          <div className="flex items-center space-x-2 sm:space-x-3 ml-auto">
+            {/* Command Palette Trigger — Desktop: pill with ⌘K text, Mobile: icon button */}
+            {onOpenPalette && (
+              <>
+                {/* Desktop pill */}
+                <button
+                  onClick={onOpenPalette}
+                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-gray-500 hover:text-gray-700 transition-all text-sm font-medium group"
+                  aria-label="Open command palette (Ctrl+K)"
+                  data-testid="header-palette-desktop"
+                >
+                  <Search className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-500" />
+                  <span className="text-xs text-gray-400">Quick nav</span>
+                  <kbd className="ml-1 px-1.5 py-0.5 bg-white border border-gray-200 rounded text-[10px] font-mono text-gray-400 shadow-sm">
+                    ⌘K
+                  </kbd>
+                </button>
+
+                {/* Mobile icon */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onOpenPalette}
+                  className="sm:hidden p-2"
+                  aria-label="Open command palette"
+                  data-testid="header-palette-mobile"
+                >
+                  <Search className="w-5 h-5 text-gray-500" />
+                </Button>
+              </>
+            )}
+
             {/* Network indicator */}
             <Badge variant="success" className="hidden sm:flex">
               <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
