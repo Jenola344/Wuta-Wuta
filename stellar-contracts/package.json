@@ -1,16 +1,26 @@
 {
   "name": "muse-stellar-contracts",
   "version": "1.0.0",
-  "description": "Stellar smart contracts for Muse AI Art Marketplace - Asset tokenization and NFT marketplace",
+  "description": "Stellar smart contracts for Muse AI Art Marketplace - Comprehensive WutaWuta marketplace with asset tokenization and NFT trading",
   "main": "src/index.js",
   "scripts": {
     "test": "jest",
     "build": "soroban compile",
+    "build:wutawuta": "soroban compile contracts/WutaWutaMarketplace.rs --target-dir target/wasm32-unknown-unknown/release",
     "deploy": "node scripts/deploy.js",
+    "deploy:testnet": "node scripts/deploy.js deploy testnet",
+    "deploy:mainnet": "node scripts/deploy.js deploy mainnet",
     "network": "stellar network",
     "keys": "stellar keys generate",
     "lint": "eslint src/",
-    "format": "prettier --write src/**/*.js"
+    "format": "prettier --write src/**/*.js",
+    "test:contracts": "cargo test --manifest-path contracts/Cargo.toml",
+    "test:wutawuta": "cargo test wutawuta --manifest-path contracts/Cargo.toml",
+    "mint:test": "node scripts/deploy.js mint",
+    "list:test": "node scripts/deploy.js list",
+    "bid:test": "node scripts/deploy.js bid",
+    "evolve:test": "node scripts/deploy.js evolve",
+    "info:test": "node scripts/deploy.js info"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^11.0.0",
@@ -34,17 +44,22 @@
     "smart-contracts",
     "soroban",
     "muse",
+    "wuta-wuta",
     "art-marketplace",
-    "tokenization"
+    "tokenization",
+    "ai-art",
+    "marketplace",
+    "evolution",
+    "collaborative-art"
   ],
   "author": "Muse Organization",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Muse-AI-Generated-Art-Marketplace/stellar-contracts.git"
+    "url": "https://github.com/olaleyeolajide81-sketch/Wuta-Wuta.git"
   },
   "bugs": {
-    "url": "https://github.com/Muse-AI-Generated-Art-Marketplace/stellar-contracts/issues"
+    "url": "https://github.com/olaleyeolajide81-sketch/Wuta-Wuta/issues"
   },
   "homepage": "https://muse-stellar.vercel.app"
 }

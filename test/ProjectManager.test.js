@@ -1,6 +1,12 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { time } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
+const { 
+  deployProjectManager, 
+  createTestProject, 
+  createTestIssue 
+} = require("./helpers/contracts");
+const { expectRevert, toEther } = require("./helpers/utils");
 
 describe("ProjectManager", function () {
   let projectManager;
@@ -55,15 +61,57 @@ describe("ProjectManager", function () {
     });
 
     it("Should create multiple projects", async function () {
-      await projectManager.createProject("Project 1", "Description 1", "https://github.com/test/project1");
-      await projectManager.createProject("Project 2", "Description 2", "https://github.com/test/project2");
+      const projectCount = 3;
       
-      expect(await projectManager.getTotalProjects()).to.equal(2);
+      for (let i = 1; i <= projectCount; i++) {
+        await projectManager.createProject(
+          `Project ${i}`,
+          `Description for project ${i}`,
+          `https://github.com/test/project${i}`
+        );
+      }
       
-      const maintainerProjects = await projectManager.getMaintainerProjects(owner.address);
-      expect(maintainerProjects.length).to.equal(2);
-      expect(maintainerProjects[0]).to.equal(1);
-      expect(maintainerProjects[1]).to.equal(2);
+      expect(await projectManager.getTotalProjects()).to.equal(projectCount);
+      
+      // Verify all projects exist and have correct IDs
+      for (let i = 1; i <= projectCount; i++) {
+        const project = await projectManager.getProject(i);
+        expect(project.id).to.equal(i);
+        expect(project.name).to.equal(`Project ${i}`);
+      }
+    });
+
+    it("Should track maintainer projects correctly", async function () {
+      // Create projects by different maintainers
+      await projectManager.connect(owner).createProject(
+        "Owner Project",
+        "By owner",
+        "https://github.com/owner/project"
+      );
+      
+      await projectManager.connect(addr1).createProject(
+        "Addr1 Project",
+        "By addr1",
+        "https://github.com/addr1/project"
+      );
+      
+      await projectManager.connect(addr2).createProject(
+        "Addr2 Project",
+        "By addr2",
+        "https://github.com/addr2/project"
+      );
+      
+      const ownerProjects = await projectManager.getMaintainerProjects(owner.address);
+      const addr1Projects = await projectManager.getMaintainerProjects(addr1.address);
+      const addr2Projects = await projectManager.getMaintainerProjects(addr2.address);
+      
+      expect(ownerProjects.length).to.equal(1);
+      expect(addr1Projects.length).to.equal(1);
+      expect(addr2Projects.length).to.equal(1);
+      
+      expect(ownerProjects[0]).to.equal(1);
+      expect(addr1Projects[0]).to.equal(2);
+      expect(addr2Projects[0]).to.equal(3);
     });
 
     it("Should allow different users to create projects", async function () {

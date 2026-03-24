@@ -1,10 +1,39 @@
-/**
- * test/MuseNFT.test.js  (extended for Issue #6)
- * Issue #6 — Secure Metadata Storage via IPFS/Pinata
- *
- * Hardhat/Chai tests for the MuseNFT contract, focusing on
- * IPFS URI enforcement and IPFS provenance storage.
- */
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
+const { time } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
+const { 
+  deployMuseNFT, 
+  registerTestModels, 
+  createTestArtwork, 
+  getFutureTime, 
+  mineBlocks 
+} = require("./helpers/contracts");
+const { 
+  generateRandomHash, 
+  expectRevert, 
+  getEvent, 
+  generateMockIPFSUri 
+} = require("./helpers/utils");
+
+describe("MuseNFT", function () {
+  let museNFT;
+  let owner;
+  let addr1;
+  let addr2;
+  let addrs;
+
+  beforeEach(async function () {
+    [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
+    
+    const MuseNFT = await ethers.getContractFactory("MuseNFT");
+    museNFT = await MuseNFT.deploy();
+    await museNFT.waitForDeployment();
+  });
+
+  describe("Deployment", function () {
+    it("Should set the right owner", async function () {
+      expect(await museNFT.owner()).to.equal(owner.address);
+    });
 
 const { expect }      = require("chai");
 const { ethers }      = require("hardhat");
@@ -19,13 +48,34 @@ async function deployMuseNFTFixture() {
   return { contract, owner, artist, buyer };
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+    it("Should not register duplicate model", async function () {
+      await museNFT.registerAIModel("stable-diffusion");
+      
+      await expectRevert(
+        museNFT.registerAIModel("stable-diffusion"),
+        "Model already registered"
+      );
+    });
 
-const VALID_IMAGE_CID    = "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi";
-const VALID_METADATA_CID = "bafybeiczsscdsbs7ffqz55asqdf3smv6klcw3gofszvwlyarci47bgf354";
-const VALID_TOKEN_URI    = `ipfs://${VALID_METADATA_CID}`;
-const AI_MODEL           = "Stable Diffusion";
-const ROYALTY_BPS        = 500; // 5%
+    it("Should not register empty model name", async function () {
+      await expectRevert(
+        museNFT.registerAIModel(""),
+        "Model name required"
+      );
+    });
+
+    it("Should allow multiple model registrations", async function () {
+      const models = ["stable-diffusion", "dall-e-3", "midjourney"];
+      
+      for (const model of models) {
+        await expect(museNFT.registerAIModel(model))
+          .to.emit(museNFT, "AIModelRegistered")
+          .withArgs(model, owner.address);
+        
+        expect(await museNFT.registeredModels(model)).to.be.true;
+      }
+    });
+  });
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 

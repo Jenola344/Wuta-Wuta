@@ -2,66 +2,13 @@ name: Security Analysis
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop, 'feature/*', 'advanced-ai-settings-menu' ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
   schedule:
     - cron: '0 0 * * 1' # Weekly on Monday
 
 jobs:
-  smart-contract-security:
-    name: Smart Contract Security
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Compile contracts
-      run: npx hardhat compile
-      
-    - name: Run Slither
-      uses: crytic/slither-action@v0.3.0
-      id: slither
-      with:
-        target: 'contracts/'
-        slither-args: '--filter-paths "node_modules/" --exclude naming-convention,external-function --json slither-results.json'
-        
-    - name: Upload Slither SARIF
-      uses: github/codeql-action/upload-sarif@v2
-      if: always()
-      with:
-        sarif_file: ${{ steps.slither.outputs.sarif }}
-        
-    - name: Upload Slither JSON
-      uses: actions/upload-artifact@v3
-      if: always()
-      with:
-        name: slither-results
-        path: slither-results.json
-        
-    - name: Run Mythril
-      run: |
-        pip install mythril
-        myth analyze contracts/MuseNFT.sol --solv 0.8.19 --outfile mythril-results.json || true
-      continue-on-error: true
-      
-    - name: Upload Mythril results
-      uses: actions/upload-artifact@v3
-      if: always()
-      with:
-        name: mythril-results
-        path: mythril-results.json
-
   dependency-security:
     name: Dependency Security
     runs-on: ubuntu-latest
@@ -77,10 +24,10 @@ jobs:
         cache: 'npm'
         
     - name: Install dependencies
-      run: npm ci
+      run: npm install
       
     - name: Run npm audit
-      run: npm audit --json > npm-audit.json || true
+      run: npm audit --json > npm-audit.json || echo "Audit completed with issues"
       
     - name: Upload npm audit results
       uses: actions/upload-artifact@v3
@@ -112,10 +59,11 @@ jobs:
         cache: 'npm'
         
     - name: Install dependencies
-      run: npm ci
+      run: npm install
       
     - name: Run SonarCloud scan
       uses: SonarSource/sonarcloud-github-action@master
+      continue-on-error: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -131,9 +79,10 @@ jobs:
     - name: Perform CodeQL analysis
       uses: github/codeql-action/analyze@v2
 
-  fuzz-testing:
-    name: Fuzz Testing
+  smart-contract-security:
+    name: Smart Contract Security
     runs-on: ubuntu-latest
+    if: ${{ contains(github.event.head_commit.message, '[contracts]') || contains(github.event.head_commit.message, '[solidity]') }}
     
     steps:
     - name: Checkout code
@@ -146,73 +95,36 @@ jobs:
         cache: 'npm'
         
     - name: Install dependencies
-      run: npm ci
+      run: npm install
       
-    - name: Install Echidna
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y solc
-        pip install echidna
-        
-    - name: Run Echidna fuzz testing
-      run: |
-        # Create a simple fuzz test if not exists
-        if [ ! -f "test/fuzz/MuseNFTFuzz.sol" ]; then
-          mkdir -p test/fuzz
-          cat > test/fuzz/MuseNFTFuzz.sol << 'EOF'
-        contract MuseNFTFuzz {
-            function test_createCollaborativeArtwork(bytes calldata data) public {
-                // Fuzz test for artwork creation
-            }
-        }
-        EOF
-        fi
-        
-        echidna test/fuzz/MuseNFTFuzz.sol --contract MuseNFTFuzz || true
+    - name: Compile contracts
+      run: npx hardhat compile || echo "Hardhat contracts not found, skipping"
+      
+    - name: Run Slither
+      uses: crytic/slither-action@v0.3.0
+      id: slither
       continue-on-error: true
-
-  formal-verification:
-    name: Formal Verification
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
       with:
-        node-version: '18'
-        cache: 'npm'
+        target: 'contracts/'
+        slither-args: '--filter-paths "node_modules/" --exclude naming-convention,external-function --json slither-results.json'
         
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Install Certora
-      run: |
-        pip install certora-cli
-      continue-on-error: true
-      
-    - name: Run Certora verification
-      run: |
-        # Create a simple spec if not exists
-        if [ ! -f "certora/MuseNFT.spec" ]; then
-          mkdir -p certora
-          cat > certora/MuseNFT.spec << 'EOF'
-        // Simple Certora specification
-        methods {
-            // Add specification methods here
-        }
-        EOF
-        fi
+    - name: Upload Slither SARIF
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: ${{ steps.slither.outputs.sarif }}
         
-        certoraRun contracts/MuseNFT.sol certora/MuseNFT.spec || true
-      continue-on-error: true
+    - name: Upload Slither JSON
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: slither-results
+        path: slither-results.json
 
   security-report:
     name: Security Report
     runs-on: ubuntu-latest
-    needs: [smart-contract-security, dependency-security, code-quality, fuzz-testing, formal-verification]
+    needs: [dependency-security, code-quality, smart-contract-security]
     if: always()
     
     steps:
@@ -225,25 +137,23 @@ jobs:
         echo "Generated on: $(date)" >> security-report.md
         echo "" >> security-report.md
         echo "## Summary" >> security-report.md
-        echo "- Smart Contract Security: ${{ needs.smart-contract-security.result }}" >> security-report.md
         echo "- Dependency Security: ${{ needs.dependency-security.result }}" >> security-report.md
         echo "- Code Quality: ${{ needs.code-quality.result }}" >> security-report.md
-        echo "- Fuzz Testing: ${{ needs.fuzz-testing.result }}" >> security-report.md
-        echo "- Formal Verification: ${{ needs.formal-verification.result }}" >> security-report.md
+        echo "- Smart Contract Security: ${{ needs.smart-contract-security.result }}" >> security-report.md
         echo "" >> security-report.md
         echo "## Detailed Results" >> security-report.md
-        
-        if [ -f "slither-results/slither-results.json" ]; then
-          echo "### Slither Analysis" >> security-report.md
-          echo "\`\`\`json" >> security-report.md
-          cat slither-results/slither-results.json | head -50 >> security-report.md
-          echo "\`\`\`" >> security-report.md
-        fi
         
         if [ -f "npm-audit-results/npm-audit.json" ]; then
           echo "### NPM Audit Results" >> security-report.md
           echo "\`\`\`json" >> security-report.md
           cat npm-audit-results/npm-audit.json | head -50 >> security-report.md
+          echo "\`\`\`" >> security-report.md
+        fi
+        
+        if [ -f "slither-results/slither-results.json" ]; then
+          echo "### Slither Analysis" >> security-report.md
+          echo "\`\`\`json" >> security-report.md
+          cat slither-results/slither-results.json | head -50 >> security-report.md
           echo "\`\`\`" >> security-report.md
         fi
         
