@@ -1,13 +1,9 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React from 'react';
+import { motion } from 'framer-motion';
 import {
-    Wallet,
     X,
     CheckCircle,
     ExternalLink,
-    ExternalLinkIcon,
-    HelpCircle,
-    Copy,
     LogOut,
     RefreshCw,
     Wallet2,
@@ -50,10 +46,6 @@ const WalletConnectionModal = ({ isOpen, onClose }) => {
         disconnectWallet();
         onClose();
     };
-
-    const shortAddress = (address && typeof address === 'string' && address.slice)
-        ? `${address.slice(0, 6)}...${address.slice(-6)}`
-        : '';
 
     return (
         <Modal

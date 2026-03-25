@@ -9,7 +9,7 @@
     "start:backend": "node server/index.js",
     "dev": "concurrently \"npm run start\" \"npm run start:backend\"",
     "build": "react-scripts build",
-    "test": "react-scripts test -- --coverage --watchAll=false",
+    "test": "react-scripts test",
     "test:e2e": "echo 'E2E tests not configured yet' && exit 0",
     "test:load": "echo 'Load tests not configured yet' && exit 0",
     "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
