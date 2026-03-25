@@ -61,6 +61,18 @@ pub struct Evolution {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
+pub struct Offer {
+    pub id: u32,
+    pub token_id: u64,
+    pub buyer: Address,
+    pub amount: i128,
+    pub expires: u64,
+    pub active: bool,
+    pub payment_token: Address,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[contracttype]
 pub struct RoyaltyPayment {
     pub token_id: u64,
     pub creator: Address,
@@ -102,6 +114,8 @@ impl WutaWutaMarketplace {
         env.storage().instance().set(&Vec::<Bid>::new(&env));
         env.storage().instance().set(&Map::<u64, Vec<Evolution>>::new(&env));
         env.storage().instance().set(&Map::<u64, Address>::new(&env)); // token ownership
+        env.storage().instance().set(&Map::<u64, Vec<Offer>>::new(&env));
+        env.storage().instance().set(&0u32); // offer_counter
 
         // Emit initialization event
         env.events().publish(
@@ -571,6 +585,199 @@ impl WutaWutaMarketplace {
     }
 
     // Admin functions
+    // Make an offer on an artwork
+    pub fn make_offer(
+        env: Env,
+        buyer: Address,
+        token_id: u64,
+        amount: i128,
+        duration: u64,
+        payment_token: Address,
+    ) -> u32 {
+        buyer.require_auth();
+
+        // Check if artwork exists
+        let _artwork = Self::get_artwork(env.clone(), token_id);
+        
+        // Check if not already owned by buyer
+        let owner = Self::get_token_owner(env.clone(), token_id);
+        if owner == buyer { panic!("Already own this token"); }
+
+        if amount <= 0 { panic!("Amount must be positive"); }
+        if duration <= 0 { panic!("Duration must be positive"); }
+
+        // Process payment (hold in escrow)
+        let payment_token_contract = Token::new(&env, &payment_token);
+        payment_token_contract.transfer(&buyer, &env.current_contract_address(), &amount);
+
+        let offer_id = Self::increment_offer_counter(env.clone());
+        let expires = env.ledger().timestamp() + duration;
+
+        let offer = Offer {
+            id: offer_id,
+            token_id,
+            buyer: buyer.clone(),
+            amount,
+            expires,
+            active: true,
+            payment_token,
+        };
+
+        // Store offer
+        let mut offers_map = Self::get_offers_map(env.clone());
+        let mut token_offers = offers_map.get(token_id).unwrap_or(Vec::new(&env));
+        token_offers.push_back(offer);
+        offers_map.set(token_id, token_offers);
+        env.storage().instance().set(&offers_map);
+
+        // Emit offer event
+        env.events().publish(
+            (Symbol::new(&env, "offer_made"),),
+            (token_id, buyer, amount, expires, offer_id),
+        );
+
+        offer_id
+    }
+
+    // Accept an offer
+    pub fn accept_offer(env: Env, seller: Address, token_id: u64, offer_id: u32) {
+        seller.require_auth();
+
+        // Verify ownership
+        let owner = Self::get_token_owner(env.clone(), token_id);
+        if owner != seller { panic!("Not the token owner"); }
+
+        // Find the offer
+        let mut offers_map = Self::get_offers_map(env.clone());
+        let mut token_offers = offers_map.get(token_id).expect("No offers for this token");
+        
+        let mut offer_index = None;
+        for (i, offer) in token_offers.iter().enumerate() {
+            if offer.id == offer_id && offer.active {
+                if env.ledger().timestamp() >= offer.expires {
+                    panic!("Offer expired");
+                }
+                offer_index = Some(i as u32);
+                break;
+            }
+        }
+
+        let i = offer_index.expect("Offer not found or inactive");
+        let mut offer = token_offers.get(i).unwrap();
+
+        let marketplace_fee = Self::get_marketplace_fee(env.clone());
+        let treasury = Self::get_treasury(env.clone());
+        let artwork = Self::get_artwork(env.clone(), token_id);
+        
+        // Calculate fees and royalties
+        let fee_amount = (offer.amount * marketplace_fee as i128) / 10000;
+        let seller_amount = offer.amount - fee_amount;
+        let royalty_amount = (offer.amount * artwork.royalty_percentage as i128) / 10000;
+        let final_seller_amount = seller_amount - royalty_amount;
+
+        let payment_token_contract = Token::new(&env, &offer.payment_token);
+        
+        // Transfer marketplace fee to treasury
+        if fee_amount > 0 {
+            payment_token_contract.transfer(&env.current_contract_address(), &treasury, &fee_amount);
+        }
+        
+        // Transfer royalty to original creator
+        if royalty_amount > 0 {
+            payment_token_contract.transfer(&env.current_contract_address(), &artwork.creator, &royalty_amount);
+        }
+        
+        // Transfer remaining amount to seller
+        if final_seller_amount > 0 {
+            payment_token_contract.transfer(&env.current_contract_address(), &seller, &final_seller_amount);
+        }
+
+        // Update ownership
+        let mut ownership = Self::get_ownership_map(env.clone());
+        ownership.set(token_id, offer.buyer.clone());
+        env.storage().instance().set(&ownership);
+
+        // Update token lists
+        Self::remove_from_creator_tokens(env.clone(), seller.clone(), token_id);
+        let mut buyer_tokens = Self::get_creator_tokens(env.clone(), offer.buyer.clone());
+        buyer_tokens.push_back(token_id);
+        let mut token_map = Self::get_creator_tokens_map(env.clone());
+        token_map.set(offer.buyer.clone(), buyer_tokens);
+        env.storage().instance().set(&token_map);
+
+        // Mark offer as used and deactivate others for this token
+        offer.active = false;
+        token_offers.set(i, offer.clone());
+        
+        // Also cancel any active listings for this token
+        let mut listings = Self::get_listings_map(env.clone());
+        if let Some(mut listing) = listings.get(token_id) {
+            if listing.active {
+                listing.active = false;
+                listings.set(token_id, listing);
+                env.storage().instance().set(&listings);
+            }
+        }
+
+        offers_map.set(token_id, token_offers);
+        env.storage().instance().set(&offers_map);
+
+        // Record royalty payment
+        if royalty_amount > 0 {
+            let royalty_payment = RoyaltyPayment {
+                token_id,
+                creator: artwork.creator,
+                amount: royalty_amount,
+                timestamp: env.ledger().timestamp(),
+            };
+            let mut royalty_history = Self::get_royalty_history(env.clone());
+            royalty_history.push_back(royalty_payment);
+            env.storage().instance().set(&royalty_history);
+        }
+
+        // Emit offer accepted event
+        env.events().publish(
+            (Symbol::new(&env, "offer_accepted"),),
+            (token_id, offer.buyer, seller, offer.amount, royalty_amount),
+        );
+    }
+
+    // Cancel an offer (by buyer)
+    pub fn cancel_offer(env: Env, buyer: Address, token_id: u64, offer_id: u32) {
+        buyer.require_auth();
+
+        let mut offers_map = Self::get_offers_map(env.clone());
+        let mut token_offers = offers_map.get(token_id).expect("No offers for this token");
+        
+        let mut offer_index = None;
+        for (i, offer) in token_offers.iter().enumerate() {
+            if offer.id == offer_id && offer.active {
+                if offer.buyer != buyer { panic!("Not the offer buyer"); }
+                offer_index = Some(i as u32);
+                break;
+            }
+        }
+
+        let i = offer_index.expect("Offer not found or inactive");
+        let mut offer = token_offers.get(i).unwrap();
+
+        // Refund escrowed payment
+        let payment_token_contract = Token::new(&env, &offer.payment_token);
+        payment_token_contract.transfer(&env.current_contract_address(), &buyer, &offer.amount);
+
+        // Mark offer as inactive
+        offer.active = false;
+        token_offers.set(i, offer);
+        offers_map.set(token_id, token_offers);
+        env.storage().instance().set(&offers_map);
+
+        // Emit offer cancelled event
+        env.events().publish(
+            (Symbol::new(&env, "offer_cancelled"),),
+            (token_id, buyer, offer_id),
+        );
+    }
+
     pub fn update_marketplace_fee(env: Env, new_fee: u32) {
         let admin = Self::get_admin(env.clone());
         admin.require_auth();
@@ -646,6 +853,11 @@ impl WutaWutaMarketplace {
         evolutions.get(token_id).unwrap_or_default()
     }
 
+    pub fn get_offers(env: Env, token_id: u64) -> Vec<Offer> {
+        let offers_map = Self::get_offers_map(env);
+        offers_map.get(token_id).unwrap_or(Vec::new(&env))
+    }
+
     pub fn get_highest_bid(env: Env, token_id: u64) -> Option<Bid> {
         let bids = Self::get_bids(env);
         let mut highest_bid: Option<Bid> = None;
@@ -673,6 +885,13 @@ impl WutaWutaMarketplace {
 
     fn increment_nft_counter(env: Env) -> u64 {
         let mut counter = env.storage().instance().get(&0u64).unwrap_optimized();
+        counter += 1;
+        env.storage().instance().set(&counter);
+        counter
+    }
+
+    fn increment_offer_counter(env: Env) -> u32 {
+        let mut counter = env.storage().instance().get(&0u32).unwrap_or(0);
         counter += 1;
         env.storage().instance().set(&counter);
         counter
@@ -716,6 +935,10 @@ impl WutaWutaMarketplace {
 
     fn get_evolutions(env: Env) -> Map<u64, Vec<Evolution>> {
         env.storage().instance().get(&Map::<u64, Vec<Evolution>>::new(&env)).unwrap_or_default()
+    }
+
+    fn get_offers_map(env: Env) -> Map<u64, Vec<Offer>> {
+        env.storage().instance().get(&Map::<u64, Vec<Offer>>::new(&env)).unwrap_or_default()
     }
 
     fn get_royalty_history(env: Env) -> Vec<RoyaltyPayment> {
