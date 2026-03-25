@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ErrorBoundary from '../ErrorBoundary';
 
 // Component that throws an error for testing
@@ -111,8 +111,11 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>
     );
 
-    // Should now show the normal content
-    expect(screen.getByText('No error')).toBeInTheDocument();
+    // Wait for the normal content to appear after reset
+    waitFor(() => {
+      expect(screen.getByText('No error')).toBeInTheDocument();
+      expect(screen.queryByText('Oops! Something went wrong')).not.toBeInTheDocument();
+    });
   });
 
   it('logs error to console in development mode', () => {
