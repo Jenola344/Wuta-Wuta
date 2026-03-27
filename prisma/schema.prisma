@@ -106,10 +106,38 @@ enum BidStatus {
   CANCELLED
 }
 
+enum EventType {
+  ARTWORK_MINTED
+  ARTWORK_LISTED
+  ARTWORK_SOLD
+  BID_MADE
+  AUCTION_ENDED
+  ARTWORK_EVOLVED
+  LISTING_CANCELLED
+  MARKETPLACE_INITIALIZED
+  FEE_UPDATED
+}
+
+model Transaction {
+  id            String    @id @default(uuid())
+  txHash        String    @unique
+  contractId    String
+  eventType     EventType
+  parsedData    Json
+  blockTimestamp DateTime?
+  confirmedAt   DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+
+  @@index([contractId])
+  @@index([eventType])
+  @@index([confirmedAt])
+  @@map("stellar_transactions")
+}
+
 model TradeHistory {
   id              String   @id @default(uuid())
   price           Decimal  @db.Decimal(20, 8)
-  transactionHash String?  // Blockchain transaction hash
+  transactionHash String?  @unique // Make unique to prevent dupes
   timestamp       DateTime @default(now())
   
   // Relations
@@ -123,4 +151,5 @@ model TradeHistory {
   @@index([artAssetId])
   @@index([sellerId])
   @@index([buyerId])
+  @@index([transactionHash])
 }

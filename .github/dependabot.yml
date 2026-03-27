@@ -1,0 +1,51 @@
+version: 2
+updates:
+  - package-ecosystem: \"npm\"
+    directory: \"/stellar-contracts\"
+    schedule:
+      interval: \"weekly\"
+    open-pull-requests-limit: 10
+    rebase-strategy: \"auto\"
+    labels:
+      - \"dependencies\"
+      - \"soroban\"
+    reviewers:
+      - \"olaleyeolajide81-sketch\"  # Adjust to repo owner
+    groups:
+      soroban-dependencies:
+        patterns:
+          - \"@stellar/*\"
+          - \"soroban-cli\"
+          - \"stellar-sdk\"
+        update-types:
+          - \"minor\"
+          - \"patch\"
+      rust-dependencies:
+        patterns:
+          - \"soroban-sdk\"
+        directory: \"/stellar-contracts/contracts\"
+        package-ecosystem: \"cargo\"
+        schedule:
+          interval: \"monthly\"
+
+  - package-ecosystem: \"cargo\"
+    directory: \"/stellar-contracts/contracts\"
+    schedule:
+      interval: \"monthly\"
+    open-pull-requests-limit: 5
+    rebase-strategy: \"auto\"
+    labels:
+      - \"dependencies\"
+      - \"rust\"
+      - \"soroban\"
+    reviewers:
+      - \"olaleyeolajide81-sketch\"
+
+  - package-ecosystem: \"github-actions\"
+    directory: \"/\"
+    schedule:
+      interval: \"weekly\"
+    labels:
+      - \"dependencies\"
+      - \"github-actions\"
+

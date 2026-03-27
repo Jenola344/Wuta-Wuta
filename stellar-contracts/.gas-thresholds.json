@@ -1,0 +1,12 @@
+{
+  "thresholds": {
+    "mint_artwork": 8000000,
+    "list_artwork": 5000000,
+    "buy_artwork": 12000000,
+    "make_bid": 4000000,
+    "end_auction": 15000000,
+    "evolve_artwork": 10000000,
+    "global_max": 20000000
+  },
+  "version": "1.0"
+}

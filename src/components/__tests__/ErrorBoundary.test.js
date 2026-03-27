@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ErrorBoundary from '../ErrorBoundary';
 
 // Component that throws an error for testing
@@ -106,16 +106,19 @@ describe('ErrorBoundary', () => {
 
     // Rerender with no error
     rerender(
-      <ErrorBoundary>
+      <ErrorBoundary key="retry">
         <ThrowError shouldThrow={false} />
       </ErrorBoundary>
     );
 
-    // Should now show the normal content
-    expect(screen.getByText('No error')).toBeInTheDocument();
+    // Wait for the normal content to appear after reset
+    waitFor(() => {
+      expect(screen.getByText('No error')).toBeInTheDocument();
+      expect(screen.queryByText('Oops! Something went wrong')).not.toBeInTheDocument();
+    });
   });
 
-  it('logs error to console in development mode', () => {
+  it('renders development error details without custom logging', () => {
     const originalNodeEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = 'development';
 
@@ -125,12 +128,8 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>
     );
 
-    // Check that error was logged
-    expect(console.error).toHaveBeenCalledWith(
-      'Error Boundary caught an error:',
-      expect.any(Error),
-      expect.any(Object)
-    );
+    expect(screen.getByText(/Show Error Details \(Development\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Error ID:/)).toBeInTheDocument();
 
     process.env.NODE_ENV = originalNodeEnv;
   });

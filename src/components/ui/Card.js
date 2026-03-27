@@ -29,9 +29,9 @@ const Card = React.forwardRef(({
     xl: 'shadow-2xl'
   };
   
-  const glassClasses = glass 
-    ? 'bg-white/80 backdrop-blur-xl border border-white/20' 
-    : 'bg-white border border-gray-100';
+  const glassClasses = glass
+    ? 'bg-white/80 backdrop-blur-xl border border-white/20 dark:bg-gray-900/70 dark:border-gray-700/40'
+    : 'bg-white border border-gray-100 dark:bg-gray-900 dark:border-gray-800';
   
   const hoverClasses = hover 
     ? 'hover:shadow-xl hover:scale-[1.02] cursor-pointer' 
@@ -65,7 +65,7 @@ export const CardHeader = React.forwardRef(({ children, className = '', ...props
 CardHeader.displayName = 'CardHeader';
 
 export const CardTitle = React.forwardRef(({ children, className = '', ...props }, ref) => (
-  <h3 ref={ref} className={`text-xl font-bold text-gray-900 ${className}`} {...props}>
+  <h3 ref={ref} className={`text-xl font-bold text-gray-900 dark:text-gray-100 ${className}`} {...props}>
     {children}
   </h3>
 ));
@@ -73,7 +73,7 @@ export const CardTitle = React.forwardRef(({ children, className = '', ...props 
 CardTitle.displayName = 'CardTitle';
 
 export const CardDescription = React.forwardRef(({ children, className = '', ...props }, ref) => (
-  <p ref={ref} className={`text-gray-600 text-sm mt-1 ${className}`} {...props}>
+  <p ref={ref} className={`text-gray-600 text-sm mt-1 dark:text-gray-400 ${className}`} {...props}>
     {children}
   </p>
 ));
@@ -89,7 +89,7 @@ export const CardContent = React.forwardRef(({ children, className = '', ...prop
 CardContent.displayName = 'CardContent';
 
 export const CardFooter = React.forwardRef(({ children, className = '', ...props }, ref) => (
-  <div ref={ref} className={`mt-4 pt-4 border-t border-gray-100 ${className}`} {...props}>
+  <div ref={ref} className={`mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 ${className}`} {...props}>
     {children}
   </div>
 ));

@@ -6,7 +6,7 @@
   "scripts": {
     "test": "jest",
     "build": "soroban compile",
-    "build:wutawuta": "soroban compile contracts/WutaWutaMarketplace.rs --target-dir target/wasm32-unknown-unknown/release",
+    "build:wutawuta": "soroban compile contracts/wutawuta_marketplace.rs --target-dir target/wasm32-unknown-unknown/release",
     "deploy": "node scripts/deploy.js",
     "deploy:testnet": "node scripts/deploy.js deploy testnet",
     "deploy:mainnet": "node scripts/deploy.js deploy mainnet",
@@ -20,7 +20,10 @@
     "list:test": "node scripts/deploy.js list",
     "bid:test": "node scripts/deploy.js bid",
     "evolve:test": "node scripts/deploy.js evolve",
-    "info:test": "node scripts/deploy.js info"
+    "info:test": "node scripts/deploy.js info",
+    "test:mainnet-fork": "./scripts/test-mainnet-fork.sh",
+    "test:gas": "npm run test:mainnet-fork && node scripts/gas-report.js",
+    "gas:report": "node scripts/gas-report.js"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^11.0.0",

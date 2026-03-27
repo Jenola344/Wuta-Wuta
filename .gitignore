@@ -67,6 +67,13 @@ artifacts/
 typechain/
 typechain-types/
 
+# Soroban
+.soroban/
+target/
+deployment.json
+gas-report.*
+*.wasm
+
 # Private keys and sensitive data
 private-keys/
 secrets/

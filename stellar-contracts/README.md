@@ -252,10 +252,52 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 - **Stellar Community** - For excellent documentation and support
 - **Muse Organization** - For vision and direction
 
+## 🛠️ CI/CD Pipeline
+
+The project now includes automated CI/CD for Soroban contracts with **mainnet fork testing and gas prediction**:
+
+### Local Testing
+```bash
+cd stellar-contracts
+
+# Build
+npm run build:wutawuta
+
+# Gas prediction on mainnet fork
+npm run test:gas
+
+# View report
+npm run gas:report
+open gas-report.html  # macOS
+# or xdg-open gas-report.html (Linux)
+```
+
+### GitHub Actions Workflow
+- **CI**: Build, test, mainnet fork simulation, gas analysis
+- **CD**: Deploy testnet (on main merge), mainnet (on release)
+- Triggers: PRs/push to `stellar-contracts/**`
+
+**Secrets needed**:
+```
+STELLAR_DEPLOY_KEY_TESTNET
+STELLAR_DEPLOY_KEY_MAINNET  # For CD
+SLACK_WEBHOOK  # Optional notifications
+```
+
+### Gas Thresholds
+Configured in `.gas-thresholds.json`. Adjust as needed:
+- `mint_artwork`: 8M CPU insns
+- `buy_artwork`: 12M
+- `global_max`: 20M
+
+### Reports
+- `gas-report.json`: Raw data
+- `gas-report.html`: Visual table (CI artifacts)
+
 ## 📞 Support
 
 - **Discord**: [Muse Community](https://discord.gg/muse)
-- **GitHub Issues**: [Create Issue](https://github.com/Muse-AI-Generated-Art-Marketplace/stellar-contracts/issues)
+- **GitHub Issues**: [Create Issue](https://github.com/olaleyeolajide81-sketch/Wuta-Wuta/issues)
 - **Email**: stellar@muse.art
 
 ---

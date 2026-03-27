@@ -18,9 +18,9 @@ const Button = React.forwardRef(({
   
   const variants = {
     primary: 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 focus:ring-purple-500 shadow-lg hover:shadow-xl',
-    secondary: 'bg-white border border-gray-200 text-gray-900 hover:bg-gray-50 focus:ring-purple-500 shadow-md hover:shadow-lg',
-    outline: 'border-2 border-purple-600 text-purple-600 hover:bg-purple-50 focus:ring-purple-500',
-    ghost: 'text-gray-700 hover:bg-gray-100 focus:ring-purple-500',
+    secondary: 'bg-white border border-gray-200 text-gray-900 hover:bg-gray-50 focus:ring-purple-500 shadow-md hover:shadow-lg dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-800',
+    outline: 'border-2 border-purple-600 text-purple-600 hover:bg-purple-50 focus:ring-purple-500 dark:text-purple-300 dark:border-purple-500 dark:hover:bg-purple-900/20',
+    ghost: 'text-gray-700 hover:bg-gray-100 focus:ring-purple-500 dark:text-gray-300 dark:hover:bg-gray-800',
     danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-lg hover:shadow-xl',
     success: 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 shadow-lg hover:shadow-xl'
   };
@@ -40,11 +40,12 @@ const Button = React.forwardRef(({
   };
   
   const classes = `${baseClasses} ${variants[variant]} ${sizes[size]} ${className}`;
+  const stateClasses = disabled || loading ? ' opacity-50 cursor-not-allowed' : '';
   
   return (
     <motion.button
       ref={ref}
-      className={classes}
+      className={`${classes}${stateClasses}`}
       whileHover={{ scale: disabled || loading ? 1 : 1.02 }}
       whileTap={{ scale: disabled || loading ? 1 : 0.98 }}
       onClick={loading ? undefined : onClick}
@@ -52,7 +53,10 @@ const Button = React.forwardRef(({
       {...props}
     >
       {loading && (
-        <Loader2 className={`animate-spin ${iconSizes[size]} ${iconPosition === 'right' ? 'mr-2' : 'mr-2'}`} />
+        <Loader2
+          data-testid="loading-spinner"
+          className={`animate-spin ${iconSizes[size]} ${iconPosition === 'right' ? 'mr-2' : 'mr-2'}`}
+        />
       )}
       
       {!loading && Icon && iconPosition === 'left' && (
