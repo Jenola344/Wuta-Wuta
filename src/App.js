@@ -6,6 +6,7 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import MintingDashboard from './components/MintingDashboard';
 import ArtMintingStepper from './components/ArtMintingStepper';
+import ThemeProvider from './contexts/ThemeContext';
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -64,6 +65,7 @@ const App = () => {
   };
 
   return (
+    <ThemeProvider>
     <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 transition-colors duration-300">
       <Header
         onMenuClick={() => setIsSidebarOpen((prev) => !prev)}
@@ -90,6 +92,7 @@ const App = () => {
         </main>
       </div>
     </div>
+    </ThemeProvider>
   );
 };
 
