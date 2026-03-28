@@ -1,7 +1,9 @@
-import React, { useMemo, useState } from 'react';
-import { CheckCircle2, Cpu, Plus, RefreshCw, Settings2, Sparkles } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { CheckCircle2, Cpu, Plus, RefreshCw, Settings2, Sparkles, Loader2 } from 'lucide-react';
 
 import { useMuseStore } from '../store/museStore';
+import { useTransactionNotificationStore } from '../store/transactionNotificationStore';
+import ProgressIndicator from './ui/ProgressIndicator';
 
 function normalizeModels(aiModels = []) {
   return aiModels.map((model) => {
@@ -56,6 +58,8 @@ const defaultAdvancedParameters = {
 
 const CreateArt = () => {
   const store = useMuseStore();
+  const { addTransaction, updateTransactionStatus, STATUS } = useTransactionNotificationStore();
+  
   const isConnected = store.isConnected || Boolean(store.userAddress);
   const isLoading = store.isLoading;
   const clearError = store.clearError;
@@ -81,6 +85,17 @@ const CreateArt = () => {
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [creationProgress, setCreationProgress] = useState(0);
+
+  // Steps for progress indicator
+  const creationSteps = [
+    { label: 'Uploading metadata' },
+    { label: 'AI Generation' },
+    { label: 'Stellar Submission' },
+    { label: 'Finalizing' }
+  ];
+
+  const [currentStep, setCurrentStep] = useState(-1);
 
   const updateField = (key, value) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -171,7 +186,28 @@ const CreateArt = () => {
       return;
     }
 
+    const txId = `creation-${Date.now()}`;
+    addTransaction({
+      id: txId,
+      type: 'Artwork Creation',
+      details: { prompt: form.prompt }
+    });
+
     try {
+      setCurrentStep(0);
+      setCreationProgress(10);
+      
+      // Step 1: Metadata upload simulation
+      await new Promise(r => setTimeout(r, 1000));
+      setCreationProgress(25);
+      
+      setCurrentStep(1);
+      // Step 2: AI Generation
+      await new Promise(r => setTimeout(r, 2000));
+      setCreationProgress(50);
+      
+      setCurrentStep(2);
+      // Step 3: Blockchain submission
       const payload = {
         aiModel: form.aiModel,
         prompt: form.prompt.trim(),
@@ -183,15 +219,33 @@ const CreateArt = () => {
       };
 
       await createArtworkAction(payload);
+      setCreationProgress(85);
+      
+      setCurrentStep(3);
+      // Step 4: Finalizing
+      await new Promise(r => setTimeout(r, 1000));
+      setCreationProgress(100);
+
+      updateTransactionStatus(txId, STATUS.CONFIRMED);
       setSuccessMessage('Artwork created successfully.');
+      
       setForm((current) => ({
         ...current,
         prompt: '',
         tokenURI: '',
         contentHash: '',
       }));
+      
+      setTimeout(() => {
+        setCurrentStep(-1);
+        setCreationProgress(0);
+      }, 3000);
+
     } catch (error) {
+      updateTransactionStatus(txId, STATUS.FAILED, { error: error.message });
       setSubmitError(error.message || 'Creation failed');
+      setCurrentStep(-1);
+      setCreationProgress(0);
     }
   };
 
@@ -226,6 +280,22 @@ const CreateArt = () => {
             </div>
           </div>
         </div>
+
+        {currentStep >= 0 && (
+          <div className="rounded-3xl border border-purple-100 bg-white p-6 shadow-md dark:border-purple-900/20 dark:bg-gray-900">
+            <h3 className="mb-6 text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Loader2 className="h-5 w-5 animate-spin text-purple-600" />
+              Generation in Progress
+            </h3>
+            <ProgressIndicator steps={creationSteps} currentStep={currentStep} />
+            <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+              <div 
+                className="h-full bg-gradient-to-r from-purple-600 to-blue-600 transition-all duration-500 ease-out"
+                style={{ width: `${creationProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 md:p-8">
           <div className="grid gap-6 md:grid-cols-2">
@@ -427,11 +497,11 @@ const CreateArt = () => {
             </div>
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || currentStep >= 0}
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 to-blue-600 px-6 py-3 font-semibold text-white shadow-lg transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-70"
             >
               <Sparkles className="h-4 w-4" />
-              {isLoading ? 'Creating artwork...' : 'Create Artwork'}
+              {currentStep >= 0 ? 'Processing...' : 'Create Artwork'}
             </button>
           </div>
         </form>

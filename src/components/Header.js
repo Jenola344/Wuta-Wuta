@@ -5,9 +5,11 @@ import { Menu, Wallet, LogOut, Search, Sun, Moon } from 'lucide-react';
 import { Button, Badge, Avatar } from './ui';
 import CopyButton from './CopyButton';
 import { useTheme } from '../contexts/ThemeContext';
+import { useWalletStore } from '../store/walletStore';
 
-const Header = ({ onMenuClick, onConnectWallet, onDisconnectWallet, address, isConnected, onOpenPalette }) => {
+const Header = ({ onMenuClick, onOpenPalette }) => {
   const { isDark, toggleTheme } = useTheme();
+  const { address, isConnected, connectWallet, disconnectWallet } = useWalletStore();
 
   return (
     <motion.header
@@ -104,7 +106,7 @@ const Header = ({ onMenuClick, onConnectWallet, onDisconnectWallet, address, isC
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={onDisconnectWallet}
+                  onClick={disconnectWallet}
                   className="p-1.5 sm:p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 ml-1"
                 >
                   <LogOut className="w-5 h-5" />
@@ -113,7 +115,7 @@ const Header = ({ onMenuClick, onConnectWallet, onDisconnectWallet, address, isC
             ) : (
               <Button
                 size="sm"
-                onClick={onConnectWallet}
+                onClick={connectWallet}
                 className="rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:shadow-lg hover:shadow-purple-500/20 px-6"
               >
                 <Wallet className="w-4 h-4 mr-2" />

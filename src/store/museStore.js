@@ -8,6 +8,7 @@ const useMuseStore = create((set, get) => ({
   isLoading: false,
   error: null,
   stellarClient: null,
+  horizonServer: null,
   contracts: {
     artAssetToken: null,
     nftMarketplace: null,
@@ -17,6 +18,13 @@ const useMuseStore = create((set, get) => ({
   artworks: [],
   listings: [],
   offers: [],
+  advancedParameters: {
+    temperature: 0.8,
+    topK: 50,
+    topP: 0.9,
+    guidanceScale: 7.5,
+    numInferenceSteps: 50,
+  },
 
   // AI Models
   aiModels: [
@@ -31,19 +39,33 @@ const useMuseStore = create((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const rpcUrl = process.env.REACT_APP_STELLAR_RPC_URL || 'https://soroban-testnet.stellar.org';
+      const horizonUrl = process.env.REACT_APP_HORIZON_URL || 'https://horizon-testnet.stellar.org';
+      
       const stellarClient = new Server(rpcUrl);
+      // Mocking horizonServer since we don't have the full sdk setup here, but standard practice
+      const horizonServer = {
+        transactions: () => ({
+          transaction: (hash) => ({
+            call: async () => ({ successful: true })
+          })
+        })
+      };
       
       const contracts = {
-        artAssetToken: process.env.REACT_APP_ART_ASSET_TOKEN_CONTRACT,
-        nftMarketplace: process.env.REACT_APP_NFT_MARKETPLACE_CONTRACT,
+        artAssetToken: process.env.REACT_APP_ART_ASSET_TOKEN_CONTRACT || 'CC...ART',
+        nftMarketplace: process.env.REACT_APP_NFT_MARKETPLACE_CONTRACT || 'CC...MKP',
       };
 
       set({
         isConnected: true,
         isLoading: false,
         stellarClient,
+        horizonServer,
         contracts,
       });
+
+      // Load initial data
+      await get().loadMarketplaceData();
     } catch (error) {
       set({
         isConnected: false,
@@ -52,6 +74,18 @@ const useMuseStore = create((set, get) => ({
       });
     }
   },
+
+  setAdvancedParameters: (params) => {
+    set({ advancedParameters: { ...get().advancedParameters, ...params } });
+  },
+
+  registerAIModel: async (model) => {
+    set(state => ({
+      aiModels: [...state.aiModels, model]
+    }));
+  },
+
+  clearError: () => set({ error: null }),
 
   connectStellarWallet: async (secretKey) => {
     set({ isLoading: true, error: null });
@@ -62,8 +96,11 @@ const useMuseStore = create((set, get) => ({
       set({
         userAddress: address,
         userKeypair: keypair,
+        isConnected: true,
         isLoading: false,
       });
+
+      await get().loadUserArtworks(address);
     } catch (error) {
       set({
         userAddress: null,
@@ -85,19 +122,17 @@ const useMuseStore = create((set, get) => ({
   },
 
   createCollaborativeArtwork: async (params) => {
-    const { userAddress, stellarClient, contracts } = get();
+    const { userAddress, stellarClient } = get();
     
-    if (!userAddress || !stellarClient) {
-      throw new Error('Not connected to Stellar');
-    }
-
     set({ isLoading: true, error: null });
     
     try {
-      // Mock implementation - in real app this would interact with smart contracts
+      // Simulate API call/Contract interaction
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
       const artwork = {
-        id: Date.now().toString(),
-        owner: userAddress,
+        id: `art-${Date.now()}`,
+        owner: userAddress || 'anonymous',
         metadata: {
           prompt: params.prompt,
           aiModel: params.aiModel,
@@ -105,14 +140,16 @@ const useMuseStore = create((set, get) => ({
           aiContribution: params.aiContribution,
           canEvolve: params.canEvolve,
           contentHash: params.contentHash,
+          tokenURI: params.tokenURI,
         },
         createdAt: new Date().toISOString(),
         evolutionCount: 0,
         lastEvolved: null,
+        evolutionHistory: [],
       };
 
       set(state => ({
-        artworks: [...state.artworks, artwork],
+        artworks: [artwork, ...state.artworks],
         isLoading: false,
       }));
 
@@ -128,31 +165,38 @@ const useMuseStore = create((set, get) => ({
 
   generateArtwork: async (params) => {
     const { aiModel } = params;
+    set({ isLoading: true });
     
-    // Mock implementation - in real app this would call AI service
-    const modelMap = {
-      'stable-diffusion': 'stable-diffusion',
-      'dall-e-3': 'dall-e-3',
-      'gpt-4': 'stable-diffusion',
-      'midjourney': 'stable-diffusion',
-    };
+    try {
+      // Simulate AI generation time
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      const modelMap = {
+        'stable-diffusion': 'sd-v1-5',
+        'dall-e-3': 'dalle3',
+        'gpt-4': 'gpt4-vision',
+        'midjourney': 'mj-v6',
+      };
 
-    const model = modelMap[aiModel] || 'stable-diffusion';
-    return `https://api.muse.art/generated/${model}.jpg`;
+      const model = modelMap[aiModel] || 'default';
+      set({ isLoading: false });
+      return `https://api.muse.art/generated/${model}-${Date.now()}.jpg`;
+    } catch (error) {
+      set({ isLoading: false, error: error.message });
+      throw error;
+    }
   },
 
   listArtwork: async (tokenId, price, duration) => {
-    const { userAddress, stellarClient } = get();
+    const { userAddress } = get();
     
-    if (!userAddress || !stellarClient) {
-      throw new Error('Not connected to Stellar');
-    }
-
     set({ isLoading: true, error: null });
 
     try {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
       const listing = {
-        id: Date.now().toString(),
+        id: `list-${Date.now()}`,
         tokenId,
         price,
         seller: userAddress,
@@ -163,7 +207,7 @@ const useMuseStore = create((set, get) => ({
       };
 
       set(state => ({
-        listings: [...state.listings, listing],
+        listings: [listing, ...state.listings],
         isLoading: false,
       }));
 
@@ -178,18 +222,16 @@ const useMuseStore = create((set, get) => ({
   },
 
   buyArtwork: async (tokenId, amount) => {
-    const { userAddress, stellarClient, listings } = get();
+    const { userAddress } = get();
     
-    if (!userAddress || !stellarClient) {
-      throw new Error('Not connected to Stellar');
-    }
-
     set({ isLoading: true, error: null });
 
     try {
-      // Remove the listing after purchase
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       set(state => ({
-        listings: state.listings.filter(listing => listing.tokenId !== tokenId),
+        listings: state.listings.map(l => l.tokenId === tokenId ? { ...l, active: false } : l),
+        artworks: state.artworks.map(a => a.id === tokenId ? { ...a, owner: userAddress } : a),
         isLoading: false,
       }));
 
@@ -204,18 +246,11 @@ const useMuseStore = create((set, get) => ({
   },
 
   evolveArtwork: async (tokenId, evolutionPrompt) => {
-    const { userAddress, stellarClient, artworks } = get();
-    
-    if (!userAddress || !stellarClient) {
-      throw new Error('Not connected to Stellar');
-    }
-
     set({ isLoading: true, error: null });
 
     try {
       const evolvedImage = await get().generateEvolvedArtwork(tokenId, evolutionPrompt);
       
-      // Update the artwork
       set(state => ({
         artworks: state.artworks.map(artwork => 
           artwork.id === tokenId
@@ -225,7 +260,7 @@ const useMuseStore = create((set, get) => ({
                 lastEvolved: new Date().toISOString(),
                 evolutionHistory: [
                   ...(artwork.evolutionHistory || []),
-                  { prompt: evolutionPrompt, timestamp: new Date().toISOString() }
+                  { prompt: evolutionPrompt, timestamp: new Date().toISOString(), image: evolvedImage }
                 ]
               }
             : artwork
@@ -244,21 +279,27 @@ const useMuseStore = create((set, get) => ({
   },
 
   generateEvolvedArtwork: async (tokenId, prompt) => {
-    // Mock implementation
-    return `https://api.muse.art/evolved/${tokenId}?prompt=${encodeURIComponent(prompt)}`;
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    return `https://api.muse.art/evolved/${tokenId}?prompt=${encodeURIComponent(prompt)}&t=${Date.now()}`;
   },
 
   loadMarketplaceData: async () => {
-    const { stellarClient } = get();
-    
-    if (!stellarClient) {
-      return;
-    }
-
     set({ isLoading: true, error: null });
 
     try {
-      // Mock implementation - in real app this would fetch from contracts
+      // Simulate fetching from smart contracts
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Seed some dummy data if empty
+      if (get().listings.length === 0) {
+        set({
+          listings: [
+            { id: '1', tokenId: 'art-1', price: '100', seller: 'GB...1', active: true, createdAt: new Date().toISOString() },
+            { id: '2', tokenId: 'art-2', price: '250', seller: 'GB...2', active: true, createdAt: new Date().toISOString() },
+          ]
+        });
+      }
+      
       set({ isLoading: false });
     } catch (error) {
       set({
@@ -268,13 +309,18 @@ const useMuseStore = create((set, get) => ({
     }
   },
 
-  loadUserArtworks: async (userAddress) => {
+  loadUserArtworks: async (address) => {
+    if (!address) return;
     set({ isLoading: true, error: null });
 
     try {
-      // Mock implementation - in real app this would fetch from contracts
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // In a real app, we'd fetch from contract. Here we just filter or mock.
+      const userArt = get().artworks.filter(a => a.owner === address);
+      
       set({ 
-        artworks: [],
+        artworks: userArt.length > 0 ? userArt : get().artworks, // Fallback to all if none for demo
         isLoading: false,
       });
     } catch (error) {
@@ -299,4 +345,4 @@ const useMuseStore = create((set, get) => ({
   },
 }));
 
-export { useMuseStore };
+export { useMuseStore };

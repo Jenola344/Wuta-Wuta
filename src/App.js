@@ -9,20 +9,42 @@ import ArtMintingStepper from './components/ArtMintingStepper';
 import Gallery from './components/Gallery';
 import CreateArt from './components/CreateArt';
 import ThemeProvider from './contexts/ThemeContext';
+import { useWalletStore } from './store/walletStore';
+import { useMuseStore } from './store/museStore';
+import { NotificationContainer } from './components/ui/ToastNotification';
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const [address, setAddress] = useState('');
+  
+  const { 
+    address, 
+    isConnected, 
+    connectWallet, 
+    disconnectWallet, 
+    checkConnection 
+  } = useWalletStore();
 
-  // Keep initial theme in sync before the first user toggle.
+  const { initializeMuse } = useMuseStore();
+
+  // Initial setup
   useEffect(() => {
-    const storedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const shouldUseDark = storedTheme ? storedTheme === 'dark' : prefersDark;
-    document.documentElement.classList.toggle('dark', shouldUseDark);
-  }, []);
+    const init = async () => {
+      // Initialize theme
+      const storedTheme = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const shouldUseDark = storedTheme ? storedTheme === 'dark' : prefersDark;
+      document.documentElement.classList.toggle('dark', shouldUseDark);
+
+      // Check wallet connection
+      await checkConnection();
+      
+      // Initialize Muse store
+      await initializeMuse();
+    };
+    
+    init();
+  }, [checkConnection, initializeMuse]);
 
   const navigation = useMemo(
     () => [
@@ -37,14 +59,16 @@ const App = () => {
     []
   );
 
-  const handleConnectWallet = () => {
-    setIsConnected(true);
-    setAddress('GBRP...WUTA');
+  const handleConnectWallet = async () => {
+    try {
+      await connectWallet();
+    } catch (error) {
+      console.error('Connection failed:', error);
+    }
   };
 
   const handleDisconnectWallet = () => {
-    setIsConnected(false);
-    setAddress('');
+    disconnectWallet();
   };
 
   // Render main content based on activeTab
@@ -71,6 +95,7 @@ const App = () => {
   return (
     <ThemeProvider>
     <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 transition-colors duration-300">
+      <NotificationContainer />
       <Header
         onMenuClick={() => setIsSidebarOpen((prev) => !prev)}
         onConnectWallet={handleConnectWallet}

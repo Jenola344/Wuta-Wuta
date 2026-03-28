@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useTransactionNotificationStore } from "../store/transactionNotificationStore";
 
 // ─── Inline styles via a style tag injected into the component ────────────────
 const STYLES = `
@@ -567,12 +568,43 @@ export default function ArtMintingStepper() {
 
   const back = () => { setErrors({}); setStep(s => s - 1); };
 
+  const [mintProgress, setMintProgress] = useState(0);
+  const { addTransaction, updateTransactionStatus, STATUS } = useTransactionNotificationStore();
+
   const handleMint = async () => {
     setMinting(true);
-    // Simulate tx
-    await new Promise(r => setTimeout(r, 2200));
-    setMinting(false);
-    setSubmitted(true);
+    const txId = `mint-${Date.now()}`;
+    addTransaction({
+      id: txId,
+      type: 'NFT Minting',
+      details: { title: data.title }
+    });
+
+    try {
+      // Step 1: Prepare
+      setMintProgress(10);
+      await new Promise(r => setTimeout(r, 800));
+      
+      // Step 2: Upload
+      setMintProgress(33);
+      await new Promise(r => setTimeout(r, 1200));
+      
+      // Step 3: Sign & Submit
+      setMintProgress(66);
+      await new Promise(r => setTimeout(r, 1500));
+      
+      // Step 4: Finalize
+      setMintProgress(100);
+      await new Promise(r => setTimeout(r, 500));
+
+      updateTransactionStatus(txId, STATUS.CONFIRMED);
+      setMinting(false);
+      setSubmitted(true);
+    } catch (error) {
+      updateTransactionStatus(txId, STATUS.FAILED, { error: error.message });
+      setErrors({ mint: error.message });
+      setMinting(false);
+    }
   };
 
   const reset = () => {
@@ -598,6 +630,24 @@ export default function ArtMintingStepper() {
 
   // ── Render panels ──
   const renderPanel = () => {
+    if (minting) return (
+      <div className="success-screen">
+         <div className="success-ring" style={{ border: '2px solid var(--accent)', background: 'transparent' }}>
+           <div className="animate-spin" style={{ width: 40, height: 40, border: '4px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+         </div>
+         <div className="success-title">Minting in progress...</div>
+         <div className="success-sub">
+           Finalizing your artwork on the Stellar network. This usually takes a few seconds.
+         </div>
+         <div className="progress-bar-wrap" style={{ width: '100%', maxWidth: 300, height: 6, marginTop: 20 }}>
+            <div className="progress-bar-fill" style={{ width: `${mintProgress}%`, height: '100%', transition: 'width 0.5s ease' }} />
+         </div>
+         <div style={{ fontFamily: 'DM Mono', fontSize: 12, marginTop: 10, color: 'var(--accent)' }}>
+           {Math.round(mintProgress)}% Complete
+         </div>
+      </div>
+    );
+
     if (submitted) return (
       <div className="success-screen">
         <div className="success-ring">✓</div>
