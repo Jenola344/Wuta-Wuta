@@ -23,74 +23,57 @@ import Card, { CardHeader, CardTitle, CardContent, CardFooter } from '../lib/Car
 import GlassCard from './ui/GlassCard';
 import ProgressIndicator from './ui/ProgressIndicator';
 import TransactionMonitor from './TransactionMonitor';
-import useMinting from '../hooks/useMinting';
+import { useFlowStore } from '../store/flowStore';
 import toast from 'react-hot-toast';
 
 const MintingDashboard = () => {
-  const [artworks, setArtworks] = useState([]);
   const [viewMode, setViewMode] = useState('grid');
   const [selectedArtwork, setSelectedArtwork] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSettings, setShowSettings] = useState(false);
-  const [selectedBlockchain, setSelectedBlockchain] = useState('ethereum');
   const [activeTransaction, setActiveTransaction] = useState(null);
   const [showProgress, setShowProgress] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
 
-  const {
-    walletState,
-    isLoading: walletLoading,
+  const { 
+    isConnected,
+    isLoading,
+    error,
+    artworks,
+    mintingStatus,
     connectWallet,
     disconnectWallet,
+    loadArtworks,
     mintArtwork,
     getMintingStatus,
-    resetMintingState
-  } = useMinting();
-
-  const [isLoading, setIsLoading] = useState(true);
+    resetMintingState,
+    checkConnection
+  } = useFlowStore();
 
   useEffect(() => {
+    // Check for existing connection first
+    checkConnection();
     loadArtworks();
+    
     // Check for reduced motion preference
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     setReducedMotion(mediaQuery.matches);
   }, []);
 
-  const loadArtworks = async () => {
-    try {
-      // Mock data - replace with actual API call
-      const mockArtworks = [
-        {
-          id: 1,
-          title: "Cosmic Dreams",
-          image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23667eea;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%23764ba2;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='400' height='400' fill='url(%23grad)' /%3E%3C/svg%3E",
-          status: "ready",
-          createdAt: "2024-03-27T10:00:00Z",
-          description: "An ethereal journey through space and consciousness"
-        },
-        {
-          id: 2,
-          title: "Digital Flora",
-          image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cdefs%3E%3ClinearGradient id='grad2' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23f093fb;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%23f5576c;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='200' cy='200' r='150' fill='url(%23grad2)' /%3E%3C/svg%3E",
-          status: "minted",
-          createdAt: "2024-03-26T15:30:00Z",
-          description: "Nature reimagined through algorithmic beauty"
-        }
-      ];
-      setArtworks(mockArtworks);
-    } catch (error) {
-      toast.error('Failed to load artworks');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Remove the old loadArtworks function since it's now in the store
 
   const handleConnectWallet = async () => {
     try {
-      await connectWallet(selectedBlockchain);
+      await connectWallet();
+      if (!isConnected) {
+        toast.error('Failed to connect wallet');
+      } else {
+        toast.success('Wallet connected successfully');
+      }
     } catch (error) {
       console.error('Wallet connection failed:', error);
+      toast.error(error.message || 'Failed to connect wallet');
     }
   };
 
@@ -98,19 +81,20 @@ const MintingDashboard = () => {
     setShowProgress(true);
     try {
       const result = await mintArtwork(artwork, {
-        contractConfig: {
-          contractAddress: '0x1234567890123456789012345678901234567890', // Mock contract
-        }
+        contractAddress: '0x1234567890123456789012345678901234567890',
       });
 
-      setActiveTransaction(result);
-
-      // Update artwork status
-      setArtworks(prev => prev.map(art =>
-        art.id === artwork.id ? { ...art, status: 'minted' } : art
-      ));
+      if (result.success) {
+        setActiveTransaction({
+          hash: result.txHash,
+          status: 'success',
+          artworkId: artwork.id
+        });
+        toast.success('Artwork minted successfully!');
+      }
     } catch (error) {
       console.error('Minting failed:', error);
+      toast.error(error.message || 'Minting failed');
     } finally {
       setShowProgress(false);
     }
@@ -179,12 +163,12 @@ const MintingDashboard = () => {
                 size="sm"
               />
               <Button
-                onClick={walletState.connected ? disconnectWallet : handleConnectWallet}
+                onClick={isConnected ? disconnectWallet : handleConnectWallet}
                 icon={Wallet}
-                variant={walletState.connected ? "secondary" : "primary"}
-                loading={walletLoading}
+                variant={isConnected ? "secondary" : "primary"}
+                loading={isLoading}
               >
-                {walletState.connected ? `Connected (${walletState.address?.slice(0, 6)}...)` : "Connect Wallet"}
+                {isConnected ? `Connected` : "Connect Wallet"}
               </Button>
             </div>
           </div>

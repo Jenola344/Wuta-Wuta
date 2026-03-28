@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { ethers } from 'ethers';
-import { Drips } from '@dripsprotocol/sdk';
 
 const useFlowStore = create((set, get) => ({
   // State
@@ -8,101 +7,119 @@ const useFlowStore = create((set, get) => ({
   isLoading: false,
   error: null,
   provider: null,
-  flowClient: null,
-  stats: {
-    totalFunding: 0,
-    activeContributors: 0,
-    projectsFunded: 0,
-    transactionVolume: 0,
-  },
-  recentActivity: [],
-  topProjects: [],
-  fundingHistory: [],
-  contributorMetrics: [],
+  signer: null,
+  chainId: null,
+  artworks: [],
+  mintingStatus: {},
+  transactions: [],
 
   // Actions
-  initializeFlow: async () => {
+  connectWallet: async () => {
     try {
       set({ isLoading: true, error: null });
       
-      // Initialize provider
-      const provider = new ethers.JsonRpcProvider(
-        process.env.REACT_APP_RPC_URL || 'https://mainnet.infura.io/v3/YOUR_PROJECT_ID'
-      );
+      if (typeof window.ethereum === 'undefined') {
+        throw new Error('Please install MetaMask or another Web3 wallet');
+      }
+
+      // Request account access
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
       
-      // Initialize Flow client
-      const flowClient = new Drips(provider);
-      
+      if (!accounts || accounts.length === 0) {
+        throw new Error('No accounts found. Please unlock your wallet.');
+      }
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const network = await provider.getNetwork();
+      const chainId = Number(network.chainId);
+
       set({ 
         provider, 
-        flowClient, 
+        signer,
+        chainId,
         isConnected: true, 
-        isLoading: false 
+        isLoading: false,
+        error: null
       });
       
-      // Load initial data
-      await get().loadDashboardData();
+      // Save connection to localStorage
+      localStorage.setItem('flowWalletConnected', 'true');
+      localStorage.setItem('flowAddress', accounts[0]);
       
     } catch (error) {
-      console.error('Failed to initialize Flow:', error);
+      console.error('Failed to connect wallet:', error);
       set({ 
         error: error.message, 
-        isLoading: false 
+        isLoading: false,
+        isConnected: false
       });
     }
   },
 
-  loadDashboardData: async () => {
+  disconnectWallet: () => {
+    set({
+      isConnected: false,
+      provider: null,
+      signer: null,
+      chainId: null,
+      artworks: [],
+      mintingStatus: {},
+      transactions: [],
+      error: null,
+    });
+    localStorage.removeItem('flowWalletConnected');
+    localStorage.removeItem('flowAddress');
+  },
+
+  checkConnection: async () => {
+    try {
+      const savedConnection = localStorage.getItem('flowWalletConnected');
+      const savedAddress = localStorage.getItem('flowAddress');
+      
+      if (savedConnection === 'true' && savedAddress && typeof window.ethereum !== 'undefined') {
+        // Reconnect silently
+        await get().connectWallet();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Check connection error:', error);
+      return false;
+    }
+  },
+
+  loadArtworks: async () => {
     try {
       set({ isLoading: true });
       
-      // Mock data for demonstration - in production, fetch from Flow contracts
-      const mockStats = {
-        totalFunding: 28450,
-        activeContributors: 1234,
-        projectsFunded: 89,
-        transactionVolume: 45678,
-      };
-
-      const mockActivity = [
-        { id: 1, type: 'funding', amount: '0.5 ETH', project: 'Project Alpha', timestamp: new Date() },
-        { id: 2, type: 'distribution', amount: '0.1 ETH', project: 'Project Beta', timestamp: new Date() },
-        { id: 3, type: 'funding', amount: '1.2 ETH', project: 'Project Gamma', timestamp: new Date() },
+      // Mock data - replace with actual blockchain queries
+      const mockArtworks = [
+        {
+          id: 1,
+          title: "Cosmic Dreams",
+          image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23667eea;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%23764ba2;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='400' height='400' fill='url(%23grad)' /%3E%3C/svg%3E",
+          status: "ready",
+          createdAt: "2024-03-27T10:00:00Z",
+          description: "An ethereal journey through space and consciousness"
+        },
+        {
+          id: 2,
+          title: "Digital Flora",
+          image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cdefs%3E%3ClinearGradient id='grad2' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23f093fb;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%23f5576c;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='200' cy='200' r='150' fill='url(%23grad2)' /%3E%3C/svg%3E",
+          status: "minted",
+          createdAt: "2024-03-26T15:30:00Z",
+          description: "Nature reimagined through algorithmic beauty"
+        }
       ];
-
-      const mockProjects = [
-        { id: 1, name: 'DeFi Protocol', funding: 12500, contributors: 45, growth: 23 },
-        { id: 2, name: 'NFT Marketplace', funding: 8200, contributors: 32, growth: 15 },
-        { id: 3, name: 'DAO Tools', funding: 6800, contributors: 28, growth: 8 },
-      ];
-
-      const mockFundingHistory = [
-        { month: 'Jan', amount: 4000, projects: 12 },
-        { month: 'Feb', amount: 3000, projects: 15 },
-        { month: 'Mar', amount: 5000, projects: 18 },
-        { month: 'Apr', amount: 2780, projects: 22 },
-        { month: 'May', amount: 6890, projects: 25 },
-        { month: 'Jun', amount: 7390, projects: 30 },
-      ];
-
-      const mockContributorMetrics = [
-        { type: 'New Contributors', value: 400, color: '#8b5cf6' },
-        { type: 'Active Contributors', value: 300, color: '#3b82f6' },
-        { type: 'Top Contributors', value: 200, color: '#10b981' },
-        { type: 'Inactive Contributors', value: 100, color: '#6b7280' },
-      ];
-
+      
       set({
-        stats: mockStats,
-        recentActivity: mockActivity,
-        topProjects: mockProjects,
-        fundingHistory: mockFundingHistory,
-        contributorMetrics: mockContributorMetrics,
-        isLoading: false,
+        artworks: mockArtworks,
+        isLoading: false
       });
       
     } catch (error) {
-      console.error('Failed to load dashboard data:', error);
+      console.error('Failed to load artworks:', error);
       set({ 
         error: error.message, 
         isLoading: false 
@@ -110,78 +127,117 @@ const useFlowStore = create((set, get) => ({
     }
   },
 
-  getProjectFunding: async (projectId) => {
+  mintArtwork: async (artwork, contractConfig) => {
     try {
-      const { flowClient } = get();
-      if (!flowClient) throw new Error('Flow client not initialized');
-      
-      // In production, fetch actual project funding data
-      const mockFunding = {
-        totalFunding: ethers.parseEther('5.5'),
-        monthlyFunding: ethers.parseEther('0.5'),
-        contributors: 12,
-        lastDistribution: Date.now() - 86400000, // 1 day ago
+      const { signer, chainId } = get();
+      if (!signer) throw new Error('Wallet not connected');
+      if (!contractConfig?.contractAddress) throw new Error('Contract address required');
+
+      set(state => ({
+        mintingStatus: {
+          ...state.mintingStatus,
+          [artwork.id]: { status: 'pending', step: 1, totalSteps: 4 }
+        }
+      }));
+
+      // Step 1: Validate metadata
+      set(state => ({
+        mintingStatus: {
+          ...state.mintingStatus,
+          [artwork.id]: { ...state.mintingStatus[artwork.id], step: 2 }
+        }
+      }));
+
+      // Step 2: Upload to IPFS (mock)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      set(state => ({
+        mintingStatus: {
+          ...state.mintingStatus,
+          [artwork.id]: { ...state.mintingStatus[artwork.id], step: 3 }
+        }
+      }));
+
+      // Step 3: Create transaction
+      const tx = {
+        hash: '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
+        from: await signer.getAddress(),
+        to: contractConfig.contractAddress,
+        value: ethers.parseEther('0.01'),
+        timestamp: Date.now()
       };
+
+      set(state => ({
+        mintingStatus: {
+          ...state.mintingStatus,
+          [artwork.id]: { ...state.mintingStatus[artwork.id], step: 4 }
+        },
+        transactions: [...state.transactions, tx]
+      }));
+
+      // Step 4: Confirm on blockchain (mock)
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      return mockFunding;
+      set(state => ({
+        mintingStatus: {
+          ...state.mintingStatus,
+          [artwork.id]: { status: 'success', txHash: tx.hash }
+        },
+        artworks: state.artworks.map(art => 
+          art.id === artwork.id ? { ...art, status: 'minted' } : art
+        )
+      }));
+
+      return { success: true, txHash: tx.hash };
+      
     } catch (error) {
-      console.error('Failed to get project funding:', error);
+      console.error('Minting failed:', error);
+      set(state => ({
+        mintingStatus: {
+          ...state.mintingStatus,
+          [artwork.id]: { status: 'error', error: error.message }
+        }
+      }));
       throw error;
     }
   },
 
-  getContributorStats: async (address) => {
+  getMintingStatus: (artworkId) => {
+    const { mintingStatus } = get();
+    return mintingStatus[artworkId] || null;
+  },
+
+  resetMintingState: (artworkId) => {
+    set(state => ({
+      mintingStatus: {
+        ...state.mintingStatus,
+        [artworkId]: undefined
+      }
+    }));
+  },
+
+  switchNetwork: async (targetChainId) => {
     try {
-      const { flowClient } = get();
-      if (!flowClient) throw new Error('Flow client not initialized');
+      const { chainId } = get();
       
-      // In production, fetch actual contributor stats
-      const mockStats = {
-        totalReceived: ethers.parseEther('2.5'),
-        projectsContributed: 5,
-        reputationScore: 85,
-        joinDate: Date.now() - 7776000000, // 90 days ago
-      };
-      
-      return mockStats;
+      if (chainId === targetChainId) return true;
+
+      if (typeof window.ethereum !== 'undefined') {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: `0x${targetChainId.toString(16)}` }],
+        });
+        return true;
+      }
+      return false;
     } catch (error) {
-      console.error('Failed to get contributor stats:', error);
-      throw error;
+      console.error('Failed to switch network:', error);
+      set({ error: error.message });
+      return false;
     }
   },
 
-  subscribeToProject: async (projectId, amountPerSecond) => {
-    try {
-      const { flowClient } = get();
-      if (!flowClient) throw new Error('Flow client not initialized');
-      
-      // In production, call actual Flow contract
-      console.log(`Subscribing to project ${projectId} with ${amountPerSecond} wei/second`);
-      
-      return true;
-    } catch (error) {
-      console.error('Failed to subscribe to project:', error);
-      throw error;
-    }
-  },
-
-  unsubscribeFromProject: async (projectId) => {
-    try {
-      const { flowClient } = get();
-      if (!flowClient) throw new Error('Flow client not initialized');
-      
-      // In production, call actual Flow contract
-      console.log(`Unsubscribing from project ${projectId}`);
-      
-      return true;
-    } catch (error) {
-      console.error('Failed to unsubscribe from project:', error);
-      throw error;
-    }
-  },
-
-  refreshData: async () => {
-    await get().loadDashboardData();
+  refreshArtworks: async () => {
+    await get().loadArtworks();
   },
 
   clearError: () => set({ error: null }),
