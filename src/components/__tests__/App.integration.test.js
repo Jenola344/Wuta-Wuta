@@ -66,6 +66,18 @@ jest.mock('../../components/MuseDAO', () => {
   };
 });
 
+jest.mock('../../components/TransactionHistory', () => {
+  return function MockTransactionHistory() {
+    return <div data-testid="transaction-history">Transaction History Component</div>;
+  };
+});
+
+jest.mock('../../components/Settings', () => {
+  return function MockSettings() {
+    return <div data-testid="settings-component">Settings Component</div>;
+  };
+});
+
 // Mock react-router-dom
 const MockRouter = ({ children }) => <BrowserRouter>{children}</BrowserRouter>;
 
@@ -212,6 +224,16 @@ describe('App Integration Tests', () => {
       
       await waitFor(() => {
         expect(screen.getByTestId('muse-dao')).toBeInTheDocument();
+      });
+    });
+
+    it('should render Settings page when navigated', async () => {
+      renderApp();
+      
+      fireEvent.click(screen.getByTestId('nav-settings'));
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('settings-component')).toBeInTheDocument();
       });
     });
   });

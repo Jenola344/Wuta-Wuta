@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { LayoutDashboard, Image, PlusCircle, History, Sparkles, Settings, Send } from 'lucide-react';
+import { LayoutDashboard, Image, PlusCircle, History, Sparkles, Settings as SettingsIcon, Send } from 'lucide-react';
 
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
@@ -8,6 +8,8 @@ import MintingDashboard from './components/MintingDashboard';
 import ArtMintingStepper from './components/ArtMintingStepper';
 import Gallery from './components/Gallery';
 import CreateArt from './components/CreateArt';
+import Settings from './components/Settings';
+import TransactionHistory from './components/TransactionHistory';
 import ThemeProvider from './contexts/ThemeContext';
 import { useWalletStore } from './store/walletStore';
 import { useMuseStore } from './store/museStore';
@@ -54,7 +56,7 @@ const App = () => {
       { id: 'minting', name: 'Minting', icon: Send },
       { id: 'history', name: 'History', icon: History },
       { id: 'ai', name: 'AI Studio', icon: Sparkles },
-      { id: 'settings', name: 'Settings', icon: Settings },
+      { id: 'settings', name: 'Settings', icon: SettingsIcon },
     ],
     []
   );
@@ -85,7 +87,9 @@ const App = () => {
       case 'ai':
         return <ArtMintingStepper />;
       case 'history':
+        return <TransactionHistory />;
       case 'settings':
+        return <Settings />;
       default:
         // Render Dashboard as fallback for unhandled tabs
         return <Dashboard />;

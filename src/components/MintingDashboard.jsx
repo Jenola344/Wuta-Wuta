@@ -32,6 +32,7 @@ const MintingDashboard = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSettings, setShowSettings] = useState(false);
+  const [selectedBlockchain, setSelectedBlockchain] = useState('ethereum');
   const [activeTransaction, setActiveTransaction] = useState(null);
   const [showProgress, setShowProgress] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -57,8 +58,10 @@ const MintingDashboard = () => {
     loadArtworks();
     
     // Check for reduced motion preference
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReducedMotion(mediaQuery.matches);
+    const mediaQuery = typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia('(prefers-reduced-motion: reduce)')
+      : null;
+    setReducedMotion(mediaQuery?.matches ?? false);
   }, []);
 
   // Remove the old loadArtworks function since it's now in the store
