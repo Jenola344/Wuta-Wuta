@@ -1,4 +1,6 @@
 import { useState, useRef } from "react";
+import Confetti from "./Confetti";
+import useConfetti from "../hooks/useConfetti";
 
 // ─── Inline styles via a style tag injected into the component ────────────────
 const STYLES = `
@@ -520,8 +522,10 @@ export default function ArtMintingStepper() {
   const [submitted, setSubmitted] = useState(false);
   const [minting, setMinting] = useState(false);
   const [errors, setErrors] = useState({});
+  const [showConfetti, setShowConfetti] = useState(false);
   const fileInputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
+  const { triggerWinner } = useConfetti();
 
   const [data, setData] = useState({
     file: null,
@@ -573,6 +577,15 @@ export default function ArtMintingStepper() {
     await new Promise(r => setTimeout(r, 2200));
     setMinting(false);
     setSubmitted(true);
+    
+    // Trigger confetti celebration when minting is successful
+    setShowConfetti(true);
+    triggerWinner();
+    
+    // Clear confetti state after animation completes
+    setTimeout(() => {
+      setShowConfetti(false);
+    }, 3000);
   };
 
   const reset = () => {
@@ -849,6 +862,7 @@ export default function ArtMintingStepper() {
   return (
     <>
       <style>{STYLES}</style>
+      <Confetti active={showConfetti} type="winner" />
       <div className="minter-root">
         <div className="minter-card">
 
