@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { CheckCircle2, Cpu, Plus, RefreshCw, Settings2, Sparkles, Loader2, Eye } from 'lucide-react';
 import { sendPrompt } from '../ai/wutaAi';
-
+import { getImageSrc } from '../utils/image';
 import { useMuseStore } from '../store/museStore';
 import { useTransactionNotificationStore } from '../store/transactionNotificationStore';
 import ProgressIndicator from './ui/ProgressIndicator';
@@ -502,12 +502,17 @@ const CreateArt = () => {
                   Generated Artwork Preview
                 </h3>
               </div>
+              {previewArtwork.isMock && (
+                <p className="mb-3 text-sm text-yellow-600">
+                  ⚠️ Using fallback AI (mock response)
+                </p>
+              )}
 
               <div className="grid gap-5 md:grid-cols-[220px_1fr]">
                 {previewArtwork.imageBase64 && (
                   <img
-                    src={`data:image/png;base64,${previewArtwork.imageBase64}`}
-                    alt={previewArtwork.title || 'Generated artwork preview'}
+                    src={getImageSrc(previewArtwork)}
+                    alt={previewArtwork.title}
                     className="h-56 w-full rounded-2xl object-cover shadow-md"
                   />
                 )}
