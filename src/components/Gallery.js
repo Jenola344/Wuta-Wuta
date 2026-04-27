@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Eye, Filter, Search, ShoppingCart, Sparkles, X, Heart } from 'lucide-react';
+import { Skeleton } from './ui/Loading';
 
 import { useMuseStore } from '../store/museStore';
 import FavoriteButton from './FavoriteButton';
@@ -65,10 +66,11 @@ const Gallery = () => {
   const [maxPrice, setMaxPrice] = useState('');
   const [sortBy, setSortBy] = useState('recent');
   const [page, setPage] = useState(1);
-  const [gridColumns, setGridColumns] = useState('grid-cols-1');
   const [selectedArtwork, setSelectedArtwork] = useState(null);
   const [purchaseArtwork, setPurchaseArtwork] = useState(null);
   const [purchaseState, setPurchaseState] = useState({ loading: false, error: '', success: '' });
+  const modalRef = useRef(null);
+  const purchaseModalRef = useRef(null);
 
   useEffect(() => {
     if (fetchAllArtworks) {
@@ -76,17 +78,28 @@ const Gallery = () => {
     }
   }, [fetchAllArtworks]);
 
+  // Trap focus inside modal and close on Escape
   useEffect(() => {
-    const updateGridColumns = () => {
-      if (window.innerWidth < 640) setGridColumns('grid-cols-1');
-      else if (window.innerWidth < 1024) setGridColumns('md:grid-cols-2');
-      else setGridColumns('xl:grid-cols-3');
+    if (!selectedArtwork) return;
+    const el = modalRef.current;
+    if (el) el.focus();
+    const handleKey = (e) => {
+      if (e.key === 'Escape') setSelectedArtwork(null);
     };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [selectedArtwork]);
 
-    updateGridColumns();
-    window.addEventListener('resize', updateGridColumns);
-    return () => window.removeEventListener('resize', updateGridColumns);
-  }, []);
+  useEffect(() => {
+    if (!purchaseArtwork) return;
+    const el = purchaseModalRef.current;
+    if (el) el.focus();
+    const handleKey = (e) => {
+      if (e.key === 'Escape') { setPurchaseArtwork(null); setPurchaseState({ loading: false, error: '' }); }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [purchaseArtwork]);
 
   const normalizedArtworks = useMemo(
     () => artworks.map((artwork) => normalizeArtwork(artwork, listings)),
@@ -304,8 +317,19 @@ const Gallery = () => {
         </div>
 
         {isLoading ? (
-          <div className="rounded-3xl border border-gray-200 bg-white p-12 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900">
-            <p className="text-lg font-semibold text-gray-900 dark:text-white">Loading gallery...</p>
+          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true" aria-label="Loading artworks">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+                <Skeleton className="aspect-[4/3] w-full" />
+                <div className="space-y-3 p-5">
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/3" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                  <Skeleton className="mt-4 h-10 w-full rounded-2xl" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filteredArtworks.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-gray-300 bg-white p-12 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -316,7 +340,7 @@ const Gallery = () => {
             </p>
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
             {paginatedArtworks.map((artwork) => (
               <article
                 key={artwork.id}
@@ -327,6 +351,7 @@ const Gallery = () => {
                   type="button"
                   onClick={() => setSelectedArtwork(artwork)}
                   className="block w-full text-left"
+                  aria-label={`View details for ${artwork.title}`}
                 >
                   <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-gray-800">
                     {artwork.image ? (
@@ -415,18 +440,20 @@ const Gallery = () => {
                 type="button"
                 onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
                 disabled={page === 1}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                aria-label="Previous page"
+                className="min-h-[44px] min-w-[44px] rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold disabled:opacity-50"
               >
                 Previous
               </button>
 
-              <span className="text-sm font-medium">Page {page} of {totalPages}</span>
+              <span className="text-sm font-medium" aria-live="polite">Page {page} of {totalPages}</span>
 
               <button
                 type="button"
                 onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
                 disabled={page === totalPages}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                aria-label="Next page"
+                className="min-h-[44px] min-w-[44px] rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold disabled:opacity-50"
               >
                 Next
               </button>
@@ -436,12 +463,22 @@ const Gallery = () => {
       </div>
 
       {selectedArtwork && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-gray-900">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="artwork-modal-title"
+          onClick={(e) => { if (e.target === e.currentTarget) setSelectedArtwork(null); }}
+        >
+          <div
+            ref={modalRef}
+            tabIndex={-1}
+            className="w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-gray-900 outline-none"
+          >
             <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-800">
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Artwork Details</p>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedArtwork.title}</h2>
+                <h2 id="artwork-modal-title" className="text-2xl font-bold text-gray-900 dark:text-white">{selectedArtwork.title}</h2>
               </div>
               <button
                 type="button"
@@ -501,9 +538,19 @@ const Gallery = () => {
       )}
 
       {purchaseArtwork && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl dark:bg-gray-900">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Confirm Purchase</h2>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="purchase-modal-title"
+          onClick={(e) => { if (e.target === e.currentTarget) { setPurchaseArtwork(null); setPurchaseState({ loading: false, error: '' }); } }}
+        >
+          <div
+            ref={purchaseModalRef}
+            tabIndex={-1}
+            className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl dark:bg-gray-900 outline-none"
+          >
+            <h2 id="purchase-modal-title" className="text-2xl font-bold text-gray-900 dark:text-white">Confirm Purchase</h2>
             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
               You are about to purchase <span className="font-semibold text-gray-900 dark:text-white">{purchaseArtwork.title}</span>.
             </p>
