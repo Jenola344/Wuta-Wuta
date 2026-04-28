@@ -61,6 +61,9 @@ const Gallery = () => {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [selectedAIModel, setSelectedAIModel] = useState('all');
+  const [artistQuery, setArtistQuery] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [sortBy, setSortBy] = useState('recent');
@@ -103,8 +106,11 @@ const Gallery = () => {
 
   const filteredArtworks = useMemo(() => {
     const search = query.trim().toLowerCase();
+    const artist = artistQuery.trim().toLowerCase();
     const min = Number(minPrice) || 0;
     const max = Number(maxPrice) || Number.POSITIVE_INFINITY;
+    const fromTs = dateFrom ? new Date(dateFrom).getTime() : 0;
+    const toTs = dateTo ? new Date(dateTo + 'T23:59:59').getTime() : Number.POSITIVE_INFINITY;
 
     const next = normalizedArtworks.filter((artwork) => {
       const matchesSearch =
@@ -112,6 +118,9 @@ const Gallery = () => {
         artwork.title.toLowerCase().includes(search) ||
         artwork.prompt.toLowerCase().includes(search) ||
         artwork.aiModel.toLowerCase().includes(search);
+
+      const matchesArtist =
+        !artist || artwork.creator.toLowerCase().includes(artist);
 
       const matchesFilter =
         filter === 'all' ||
@@ -126,7 +135,10 @@ const Gallery = () => {
       const priceValue = Number(artwork.price ?? 0);
       const matchesPrice = priceValue >= min && priceValue <= max;
 
-      return matchesSearch && matchesFilter && matchesAIModel && matchesPrice;
+      const createdTs = artwork.createdAt ? new Date(artwork.createdAt).getTime() : 0;
+      const matchesDate = createdTs >= fromTs && createdTs <= toTs;
+
+      return matchesSearch && matchesArtist && matchesFilter && matchesAIModel && matchesPrice && matchesDate;
     });
 
     next.sort((left, right) => {
@@ -139,7 +151,7 @@ const Gallery = () => {
     });
 
     return next;
-  }, [normalizedArtworks, query, filter, selectedAIModel, minPrice, maxPrice, sortBy]);
+  }, [normalizedArtworks, query, artistQuery, dateFrom, dateTo, filter, selectedAIModel, minPrice, maxPrice, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(filteredArtworks.length / 9));
 
@@ -292,6 +304,44 @@ const Gallery = () => {
                   min="0"
                   step="0.01"
                   onChange={(event) => { setMaxPrice(event.target.value); setPage(1); }}
+                  className="mt-1 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-3 text-gray-900 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="filter-artist" className="block text-xs font-medium text-gray-500">Filter by Artist</label>
+              <input
+                id="filter-artist"
+                aria-label="Filter by artist"
+                type="text"
+                placeholder="Artist address or name…"
+                value={artistQuery}
+                onChange={(event) => { setArtistQuery(event.target.value); setPage(1); }}
+                className="mt-1 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-3 text-gray-900 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label htmlFor="date-from" className="block text-xs font-medium text-gray-500">Created From</label>
+                <input
+                  id="date-from"
+                  aria-label="Created from date"
+                  type="date"
+                  value={dateFrom}
+                  onChange={(event) => { setDateFrom(event.target.value); setPage(1); }}
+                  className="mt-1 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-3 text-gray-900 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                />
+              </div>
+              <div>
+                <label htmlFor="date-to" className="block text-xs font-medium text-gray-500">Created To</label>
+                <input
+                  id="date-to"
+                  aria-label="Created to date"
+                  type="date"
+                  value={dateTo}
+                  onChange={(event) => { setDateTo(event.target.value); setPage(1); }}
                   className="mt-1 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-3 text-gray-900 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
                 />
               </div>
