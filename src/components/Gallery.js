@@ -1,9 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Eye, Filter, Search, ShoppingCart, Sparkles, X, Heart } from 'lucide-react';
 import { Skeleton } from './ui/Loading';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Eye, Search, ShoppingCart, Sparkles, X, LayoutGrid, List, Columns } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import { useMuseStore } from '../store/museStore';
+
 import FavoriteButton from './FavoriteButton';
+import ArtworkCard from './Gallery/ArtworkCard';
+import GalleryCarousel from './Gallery/GalleryCarousel';
 
 function formatAddress(address = '') {
   if (!address) return 'Unknown creator';
@@ -59,6 +65,9 @@ const Gallery = () => {
   const buyArtwork = store.buyArtwork;
   const fetchAllArtworks = store.fetchAllArtworks || store.loadMarketplaceData;
 
+  const [viewMode, setViewMode] = useState(() => {
+    return localStorage.getItem('galleryViewMode') || 'grid';
+  });
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [selectedAIModel, setSelectedAIModel] = useState('all');
@@ -71,6 +80,10 @@ const Gallery = () => {
   const [purchaseState, setPurchaseState] = useState({ loading: false, error: '', success: '' });
   const modalRef = useRef(null);
   const purchaseModalRef = useRef(null);
+
+  useEffect(() => {
+    localStorage.setItem('galleryViewMode', viewMode);
+  }, [viewMode]);
 
   useEffect(() => {
     if (fetchAllArtworks) {
@@ -216,104 +229,145 @@ const Gallery = () => {
         </div>
 
         <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-          <div className="grid gap-4 lg:grid-cols-3">
-            <div className="relative">
-              <label htmlFor="gallery-search" className="sr-only">Search artworks</label>
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                id="gallery-search"
-                aria-label="Search artworks..."
-                type="text"
-                placeholder="Search artworks..."
-                value={query}
-                onChange={(event) => { setQuery(event.target.value); setPage(1); }}
-                className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-11 pr-4 text-gray-900 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="filter-ai-model" className="block text-xs font-medium text-gray-500">Filter by AI Model</label>
-              <select
-                id="filter-ai-model"
-                aria-label="Filter by AI Model"
-                value={selectedAIModel}
-                onChange={(event) => { setSelectedAIModel(event.target.value); setPage(1); }}
-                className="mt-1 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-3 text-gray-900 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-              >
-                <option value="all">All models</option>
-                {availableAIModels.map((model) => (
-                  <option key={model} value={model}>{model}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="sort-by" className="block text-xs font-medium text-gray-500">Sort by</label>
-              <select
-                id="sort-by"
-                aria-label="Sort by"
-                value={sortBy}
-                onChange={(event) => { setSortBy(event.target.value); setPage(1); }}
-                className="mt-1 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-3 text-gray-900 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-              >
-                <option value="recent">Most recent</option>
-                <option value="newest">Newest first</option>
-                <option value="oldest">Oldest first</option>
-                <option value="price-high">Price: high to low</option>
-                <option value="price-low">Price: low to high</option>
-                <option value="title">Title</option>
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="base-filter" className="block text-xs font-medium text-gray-500">Filter by Status</label>
-              <select
-                id="base-filter"
-                aria-label="Filter by Status"
-                value={filter}
-                onChange={(event) => { setFilter(event.target.value); setPage(1); }}
-                className="mt-1 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-3 text-gray-900 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-              >
-                <option value="all">All artworks</option>
-                <option value="listed">Listed</option>
-                <option value="unlisted">Unlisted</option>
-                <option value="evolvable">Evolvable</option>
-              </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label htmlFor="min-price" className="block text-xs font-medium text-gray-500">Min Price</label>
+          <div className="flex flex-col gap-4">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="relative">
+                <label htmlFor="gallery-search" className="sr-only">Search artworks</label>
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
-                  id="min-price"
-                  aria-label="Min Price"
-                  type="number"
-                  value={minPrice}
-                  min="0"
-                  step="0.01"
-                  onChange={(event) => { setMinPrice(event.target.value); setPage(1); }}
-                  className="mt-1 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-3 text-gray-900 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                  id="gallery-search"
+                  aria-label="Search artworks..."
+                  type="text"
+                  placeholder="Search artworks..."
+                  value={query}
+                  onChange={(event) => { setQuery(event.target.value); setPage(1); }}
+                  className="w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-11 pr-4 text-gray-900 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
                 />
               </div>
+
               <div>
-                <label htmlFor="max-price" className="block text-xs font-medium text-gray-500">Max Price</label>
-                <input
-                  id="max-price"
-                  aria-label="Max Price"
-                  type="number"
-                  value={maxPrice}
-                  min="0"
-                  step="0.01"
-                  onChange={(event) => { setMaxPrice(event.target.value); setPage(1); }}
+                <label htmlFor="filter-ai-model" className="block text-xs font-medium text-gray-500">Filter by AI Model</label>
+                <select
+                  id="filter-ai-model"
+                  aria-label="Filter by AI Model"
+                  value={selectedAIModel}
+                  onChange={(event) => { setSelectedAIModel(event.target.value); setPage(1); }}
                   className="mt-1 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-3 text-gray-900 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
-                />
+                >
+                  <option value="all">All models</option>
+                  {availableAIModels.map((model) => (
+                    <option key={model} value={model}>{model}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="sort-by" className="block text-xs font-medium text-gray-500">Sort by</label>
+                <select
+                  id="sort-by"
+                  aria-label="Sort by"
+                  value={sortBy}
+                  onChange={(event) => { setSortBy(event.target.value); setPage(1); }}
+                  className="mt-1 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-3 text-gray-900 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                >
+                  <option value="recent">Most recent</option>
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="price-high">Price: high to low</option>
+                  <option value="price-low">Price: low to high</option>
+                  <option value="title">Title</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="base-filter" className="block text-xs font-medium text-gray-500">Filter by Status</label>
+                <select
+                  id="base-filter"
+                  aria-label="Filter by Status"
+                  value={filter}
+                  onChange={(event) => { setFilter(event.target.value); setPage(1); }}
+                  className="mt-1 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-3 text-gray-900 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                >
+                  <option value="all">All artworks</option>
+                  <option value="listed">Listed</option>
+                  <option value="unlisted">Unlisted</option>
+                  <option value="evolvable">Evolvable</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label htmlFor="min-price" className="block text-xs font-medium text-gray-500">Min Price</label>
+                  <input
+                    id="min-price"
+                    aria-label="Min Price"
+                    type="number"
+                    value={minPrice}
+                    min="0"
+                    step="0.01"
+                    onChange={(event) => { setMinPrice(event.target.value); setPage(1); }}
+                    className="mt-1 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-3 text-gray-900 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="max-price" className="block text-xs font-medium text-gray-500">Max Price</label>
+                  <input
+                    id="max-price"
+                    aria-label="Max Price"
+                    type="number"
+                    value={maxPrice}
+                    min="0"
+                    step="0.01"
+                    onChange={(event) => { setMaxPrice(event.target.value); setPage(1); }}
+                    className="mt-1 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-3 text-gray-900 outline-none transition focus:border-purple-500 focus:ring-2 focus:ring-purple-200 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col">
+                <label className="block text-xs font-medium text-gray-500">View Mode</label>
+                <div className="mt-1 flex gap-2 rounded-2xl bg-gray-50 p-1 dark:bg-gray-950 border border-gray-200 dark:border-gray-700">
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2 text-sm font-semibold transition ${
+                      viewMode === 'grid' 
+                        ? 'bg-white text-purple-600 shadow-sm dark:bg-gray-800 dark:text-purple-400' 
+                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                    Grid
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2 text-sm font-semibold transition ${
+                      viewMode === 'list' 
+                        ? 'bg-white text-purple-600 shadow-sm dark:bg-gray-800 dark:text-purple-400' 
+                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    <List className="h-4 w-4" />
+                    List
+                  </button>
+                  <button
+                    onClick={() => setViewMode('carousel')}
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2 text-sm font-semibold transition ${
+                      viewMode === 'carousel' 
+                        ? 'bg-white text-purple-600 shadow-sm dark:bg-gray-800 dark:text-purple-400' 
+                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    <Columns className="h-4 w-4" />
+                    Carousel
+                  </button>
+                </div>
               </div>
             </div>
+
+            <p role="status" aria-live="polite" className="text-sm text-gray-600 dark:text-gray-300">
+              Showing {paginatedArtworks.length} of {filteredArtworks.length} artwork(s)
+            </p>
           </div>
-
-          <p role="status" aria-live="polite" className="mt-3 text-sm text-gray-600 dark:text-gray-300">
-            Showing {paginatedArtworks.length} of {filteredArtworks.length} artwork(s)
-          </p>
         </div>
 
         {isLoading ? (
@@ -433,32 +487,99 @@ const Gallery = () => {
               </article>
             ))}
           </div>
+          <>
+            <AnimatePresence mode="wait">
+            {viewMode === 'carousel' ? (
+              <motion.div
+                key="carousel"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.4 }}
+              >
+                <GalleryCarousel 
+                  artworks={filteredArtworks} 
+                  onSelect={setSelectedArtwork}
+                  onPurchase={setPurchaseArtwork}
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                key={viewMode}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className={viewMode === 'grid' 
+                  ? "grid gap-6 md:grid-cols-2 xl:grid-cols-3" 
+                  : "flex flex-col gap-6"
+                }
+              >
+                {paginatedArtworks.map((artwork) => (
+                  <ArtworkCard
+                    key={artwork.id}
+                    artwork={artwork}
+                    viewMode={viewMode}
+                    onSelect={setSelectedArtwork}
+                    onPurchase={setPurchaseArtwork}
+                  />
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {totalPages > 1 && (
-            <div className="mt-4 flex items-center justify-center gap-3">
+          {viewMode !== 'carousel' && totalPages > 1 && (
+            <div className="mt-8 flex items-center justify-center gap-3">
               <button
                 type="button"
-                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                onClick={() => {
+                  setPage((prev) => Math.max(prev - 1, 1));
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
                 disabled={page === 1}
                 aria-label="Previous page"
                 className="min-h-[44px] min-w-[44px] rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-750"
               >
                 Previous
               </button>
 
               <span className="text-sm font-medium" aria-live="polite">Page {page} of {totalPages}</span>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => {
+                      setPage(p);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className={`h-10 w-10 rounded-xl text-sm font-bold transition ${
+                      page === p 
+                        ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' 
+                        : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
 
               <button
                 type="button"
-                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                onClick={() => {
+                  setPage((prev) => Math.min(prev + 1, totalPages));
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
                 disabled={page === totalPages}
                 aria-label="Next page"
                 className="min-h-[44px] min-w-[44px] rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-750"
               >
                 Next
               </button>
             </div>
-          )}
+            )}
+          </>
         )}
       </div>
 
